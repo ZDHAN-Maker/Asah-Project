@@ -1,4 +1,5 @@
 const InvariantError = require('../../utils/error/InvariantError');
+const NotFoundError = require('../../utils/error/NotFoundError');
 
 class AlbumsHandler {
   constructor(service, validator) {
@@ -11,34 +12,53 @@ class AlbumsHandler {
     this.deleteAlbumByIdHandler = this.deleteAlbumByIdHandler.bind(this);
   }
 
-  async postAlbumHandler(request, h) {
+  async postAlbumHandler(req, res) {
     try {
-      this._validator(request.payload);
-      const albumId = await this._service.addAlbum(request.payload);
-      return h.response({ status: 'success', data: { albumId } }).code(201);
+      this._validator(req.body);
+      const albumId = await this._service.addAlbum(req.body);
+      return res.status(201).json({
+        status: 'success',
+        data: { albumId },
+      });
     } catch (error) {
-      if (error.name === 'ValidationError' || error instanceof InvariantError) {
-        return h.response({ status: 'fail', message: error.message }).code(400);
+      console.error('❌ Error detail:', error);
+
+      if (error instanceof InvariantError) {
+        return res.status(400).json({
+          status: 'fail',
+          message: error.message,
+        });
       }
-      // server error
-      return h.response({ status: 'error', message: 'Terjadi kesalahan pada server' }).code(500);
+
+      return res.status(500).json({
+        status: 'error',
+        message: 'Terjadi kesalahan pada server',
+      });
     }
   }
 
-  async getAlbumByIdHandler(request, h) {
+  async getAlbumByIdHandler(req, res) {
     try {
-      const { id } = request.params;
+      const { id } = req.params;
       const album = await this._service.getAlbumById(id);
-      return { status: 'success', data: { album } };
+      return res.json({
+        status: 'success',
+        data: { album },
+      });
     } catch (error) {
-      if (error.name === 'NotFoundError') {
-        return h.response({ status: 'fail', message: error.message }).code(404);
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({
+          status: 'fail',
+          message: error.message,
+        });
       }
-      return h.response({ status: 'error', message: 'Terjadi kesalahan pada server' }).code(500);
+
+      return res.status(500).json({
+        status: 'error',
+        message: 'Terjadi kesalahan pada server',
+      });
     }
   }
-
-  // ... put & delete handlers similar handling errors
 }
 
 module.exports = AlbumsHandler;

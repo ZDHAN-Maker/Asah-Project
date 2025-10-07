@@ -1,15 +1,16 @@
 const Joi = require('joi');
+const InvariantError = require('../../utils/error/InvariantError');
 
-const schema = Joi.object({
+const albumSchema = Joi.object({
   name: Joi.string().required(),
   year: Joi.number().integer().min(1900).max(new Date().getFullYear()).required(),
 });
 
-const validateAlbum = (payload) => {
-  const { error } = schema.validate(payload);
+function validateAlbum(payload) {
+  const { error } = albumSchema.validate(payload, { abortEarly: false });
   if (error) {
-    throw new Error(error.message);
+    throw new InvariantError(error.message);
   }
-};
+}
 
-module.exports = { validateAlbum };
+module.exports = validateAlbum;
