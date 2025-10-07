@@ -1,7 +1,17 @@
-const routes = (handler) => [
-  { method: 'POST', path: '/albums', handler: handler.postAlbumHandler },
-  { method: 'GET', path: '/albums/{id}', handler: handler.getAlbumByIdHandler },
-  { method: 'PUT', path: '/albums/{id}', handler: handler.putAlbumByIdHandler },
-  { method: 'DELETE', path: '/albums/{id}', handler: handler.deleteAlbumByIdHandler },
-];
-module.exports = routes;
+const express = require('express');
+
+function createAlbumsRouter(handler) {
+  const router = express.Router();
+
+  router.post('/', handler.postAlbumHandler);
+
+  router.get('/:id', handler.getAlbumByIdHandler);
+
+  router.put('/:id', handler.putAlbumByIdHandler);
+
+  router.delete('/:id', handler.deleteAlbumByIdHandler);
+
+  return router;
+}
+
+module.exports = createAlbumsRouter;
