@@ -1,7 +1,7 @@
 {
   "name": "notes-app-back-end",
   "version": "1.0.0",
-  "description": "",
+  "description": "Hapi",
   "main": "index.js",
   "scripts": {
     "start:prod": "NODE_ENV=production node ./src/server.js",
@@ -9,7 +9,7 @@
     "lint": "eslint ./src"
   },
   "keywords": [],
-  "author": "",
+  "author": "Zidan",
   "license": "ISC",
   "devDependencies": {
     "eslint": "^8.52.0",
@@ -20,6 +20,11 @@
   "dependencies": {
     "@hapi/hapi": "^21.3.2",
     "dotenv": "^17.2.3",
+    "express": "^5.1.0",
     "nanoid": "^3.1.20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "Hapi"
   }
 }
