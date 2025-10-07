@@ -3,7 +3,9 @@ const pool = require('../db');
 const NotFoundError = require('../utils/error/NotFoundError');
 
 class SongsService {
-  async addSong({ title, year, performer, genre, duration, albumId }) {
+  async addSong({
+    title, year, performer, genre, duration, albumId,
+  }) {
     const id = `song-${nanoid(16)}`;
     const createdAt = new Date().toISOString();
     const updatedAt = createdAt;
@@ -42,10 +44,12 @@ class SongsService {
   }
 
   async editSongById(id, payload) {
-    const { title, year, performer, genre, duration, albumId } = payload;
+    const {
+      title, year, performer, genre, duration, albumId,
+    } = payload;
     const updatedAt = new Date().toISOString();
     const query = {
-      text: `UPDATE songs SET title=$1, year=$2, performer=$3, genre=$4, duration=$5, album_id=$6, updated_at=$7 WHERE id=$8 RETURNING id`,
+      text: 'UPDATE songs SET title=$1, year=$2, performer=$3, genre=$4, duration=$5, album_id=$6, updated_at=$7 WHERE id=$8 RETURNING id',
       values: [title, year, performer, genre, duration, albumId || null, updatedAt, id],
     };
     const res = await pool.query(query);
