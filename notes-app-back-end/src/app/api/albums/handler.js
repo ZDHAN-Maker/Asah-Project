@@ -20,7 +20,7 @@ class AlbumsHandler {
         data: { albumId },
       });
     } catch (error) {
-      console.error('❌ postAlbumHandler error:', error);
+      console.error('postAlbumHandler error:', error);
       if (error instanceof ClientError) {
         return res.status(error.statusCode).json({
           status: 'fail',
