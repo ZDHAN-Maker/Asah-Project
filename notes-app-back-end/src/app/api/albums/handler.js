@@ -42,10 +42,13 @@ class AlbumsHandler {
       const { id } = req.params;
 
       const album = await this._service.getAlbumById(id);
+      if (!album) {
+        throw new ClientError('Album tidak ditemukan', 404);
+      }
 
       const songs = await this._songsService.getSongsByAlbumId(id);
 
-      return res.json({
+      return res.status(200).json({
         status: 'success',
         data: {
           album: {
@@ -64,7 +67,7 @@ class AlbumsHandler {
         });
       }
 
-      console.error(error);
+      console.error('getAlbumByIdHandler error:', error);
       return res.status(500).json({
         status: 'error',
         message: 'Terjadi kesalahan pada server',
