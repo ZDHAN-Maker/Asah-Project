@@ -1,16 +1,17 @@
 const ClientError = require('../../utils/error/ClientError');
 
 class AlbumsHandler {
-  constructor(service, validator) {
+  constructor(service, validator, songsService) {
     this._service = service;
     this._validator = validator;
-
+    this._songsService = songsService;
     this.postAlbumHandler = this.postAlbumHandler.bind(this);
     this.getAlbumByIdHandler = this.getAlbumByIdHandler.bind(this);
     this.putAlbumByIdHandler = this.putAlbumByIdHandler.bind(this);
     this.deleteAlbumByIdHandler = this.deleteAlbumByIdHandler.bind(this);
   }
 
+  // POST /albums
   async postAlbumHandler(req, res) {
     try {
       this._validator(req.body);
@@ -35,13 +36,25 @@ class AlbumsHandler {
     }
   }
 
+  // GET /albums/{id}
   async getAlbumByIdHandler(req, res) {
     try {
       const { id } = req.params;
+
       const album = await this._service.getAlbumById(id);
+
+      const songs = await this._songsService.getSongsByAlbumId(id);
+
       return res.json({
         status: 'success',
-        data: { album },
+        data: {
+          album: {
+            id: album.id,
+            name: album.name,
+            year: album.year,
+            songs,
+          },
+        },
       });
     } catch (error) {
       if (error instanceof ClientError) {
@@ -51,6 +64,7 @@ class AlbumsHandler {
         });
       }
 
+      console.error(error);
       return res.status(500).json({
         status: 'error',
         message: 'Terjadi kesalahan pada server',

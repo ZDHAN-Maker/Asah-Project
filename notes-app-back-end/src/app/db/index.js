@@ -11,7 +11,8 @@ const pool = new Pool({
 });
 
 // Tes koneksi otomatis
-pool.connect()
+pool
+  .connect()
   .then(() => console.log('PostgreSQL connected successfully!'))
   .catch((err) => console.error('Failed to connect to PostgreSQL:', err));
 

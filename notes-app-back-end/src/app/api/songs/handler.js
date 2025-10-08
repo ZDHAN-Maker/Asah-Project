@@ -1,5 +1,5 @@
-const { nanoid } = require("nanoid");
-const ClientError = require("../../utils/error/ClientError");
+const { nanoid } = require('nanoid');
+const ClientError = require('../../utils/error/ClientError');
 
 class SongsHandler {
   constructor(songsService, validator) {
@@ -32,22 +32,22 @@ class SongsHandler {
       await this._service.addSong(newSong);
 
       return res.status(201).json({
-        status: "success",
-        message: "Lagu berhasil ditambahkan",
+        status: 'success',
+        message: 'Lagu berhasil ditambahkan',
         data: { songId: id },
       });
     } catch (error) {
       if (error instanceof ClientError) {
         return res.status(error.statusCode).json({
-          status: "fail",
+          status: 'fail',
           message: error.message,
         });
       }
 
       console.error(error);
       return res.status(500).json({
-        status: "error",
-        message: "Terjadi kesalahan pada server",
+        status: 'error',
+        message: 'Terjadi kesalahan pada server',
       });
     }
   }
@@ -57,57 +57,47 @@ class SongsHandler {
     try {
       const songs = await this._service.getSongs(req.query);
       return res.status(200).json({
-        status: "success",
+        status: 'success',
         data: { songs },
       });
     } catch (error) {
       if (error instanceof ClientError) {
         return res.status(error.statusCode).json({
-          status: "fail",
+          status: 'fail',
           message: error.message,
         });
       }
 
       console.error(error);
       return res.status(500).json({
-        status: "error",
-        message: "Gagal mengambil data lagu",
+        status: 'error',
+        message: 'Gagal mengambil data lagu',
       });
     }
   }
 
-  // ✅ Perbaiki postSongHandler
-  async postSongHandler(req, res) {
+  // GET /songs/:id
+  async getSongByIdHandler(req, res) {
     try {
-      this._validator.validateSong(req.body);
+      const { id } = req.params;
+      const song = await this._service.getSongById(id);
 
-      const { title, year, performer, genre, duration, albumId } = req.body;
-      const songId = await this._service.addSong({
-        title,
-        year,
-        performer,
-        genre,
-        duration,
-        albumId,
-      });
-
-      return res.status(201).json({
-        status: "success",
-        message: "Lagu berhasil ditambahkan",
-        data: { songId },
+      return res.status(200).json({
+        status: 'success',
+        data: { song },
       });
     } catch (error) {
       if (error instanceof ClientError) {
         return res.status(error.statusCode).json({
-          status: "fail",
+          status: 'fail',
           message: error.message,
         });
       }
 
       console.error(error);
       return res.status(500).json({
-        status: "error",
-        message: "Terjadi kesalahan pada server",
+        status: 'error',
+        message: 'Terjadi kesalahan pada server',
       });
     }
   }
@@ -121,21 +111,21 @@ class SongsHandler {
       await this._service.updateSongById(id, req.body);
 
       return res.json({
-        status: "success",
-        message: "Lagu berhasil diperbarui",
+        status: 'success',
+        message: 'Lagu berhasil diperbarui',
       });
     } catch (error) {
       if (error instanceof ClientError) {
         return res.status(error.statusCode).json({
-          status: "fail",
+          status: 'fail',
           message: error.message,
         });
       }
 
       console.error(error);
       return res.status(500).json({
-        status: "error",
-        message: "Terjadi kesalahan pada server",
+        status: 'error',
+        message: 'Terjadi kesalahan pada server',
       });
     }
   }
@@ -147,21 +137,21 @@ class SongsHandler {
       await this._service.deleteSongById(id);
 
       return res.json({
-        status: "success",
-        message: "Lagu berhasil dihapus",
+        status: 'success',
+        message: 'Lagu berhasil dihapus',
       });
     } catch (error) {
       if (error instanceof ClientError) {
         return res.status(error.statusCode).json({
-          status: "fail",
+          status: 'fail',
           message: error.message,
         });
       }
 
       console.error(error);
       return res.status(500).json({
-        status: "error",
-        message: "Terjadi kesalahan pada server",
+        status: 'error',
+        message: 'Terjadi kesalahan pada server',
       });
     }
   }

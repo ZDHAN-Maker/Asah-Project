@@ -3,9 +3,7 @@ const pool = require('../db');
 const NotFoundError = require('../utils/error/NotFoundError');
 
 class SongsService {
-  async addSong({
-    title, year, performer, genre, duration, albumId,
-  }) {
+  async addSong({ title, year, performer, genre, duration, albumId }) {
     const id = `song-${nanoid(16)}`;
     const createdAt = new Date().toISOString();
     const updatedAt = createdAt;
@@ -19,7 +17,6 @@ class SongsService {
   }
 
   async getSongs({ title, performer }) {
-    // optional query parameters for search
     let base = 'SELECT id, title, performer FROM songs';
     const conditions = [];
     const values = [];
@@ -43,27 +40,40 @@ class SongsService {
     return res.rows[0];
   }
 
-  async editSongById(id, payload) {
-    const {
-      title, year, performer, genre, duration, albumId,
-    } = payload;
+  async updateSongById(id, { title, year, performer, genre, duration, albumId }) {
     const updatedAt = new Date().toISOString();
+
     const query = {
-      text: 'UPDATE songs SET title=$1, year=$2, performer=$3, genre=$4, duration=$5, album_id=$6, updated_at=$7 WHERE id=$8 RETURNING id',
+      text: `UPDATE songs
+             SET title = $1, year = $2, performer = $3, genre = $4, duration = $5, album_id = $6, updated_at = $7
+             WHERE id = $8
+             RETURNING id`,
       values: [title, year, performer, genre, duration, albumId || null, updatedAt, id],
     };
+
     const res = await pool.query(query);
-    if (!res.rowCount) throw new NotFoundError('Gagal memperbarui lagu. Id tidak ditemukan');
+
+    if (!res.rowCount) {
+      throw new NotFoundError('Gagal memperbarui lagu. Id tidak ditemukan');
+    }
+
+    return res.rows[0].id;
   }
 
   async deleteSongById(id) {
-    const query = { text: 'DELETE FROM songs WHERE id=$1 RETURNING id', values: [id] };
+    const query = {
+      text: 'DELETE FROM songs WHERE id=$1 RETURNING id',
+      values: [id],
+    };
     const res = await pool.query(query);
     if (!res.rowCount) throw new NotFoundError('Gagal menghapus lagu. Id tidak ditemukan');
   }
 
   async getSongsByAlbumId(albumId) {
-    const query = { text: 'SELECT id, title, performer FROM songs WHERE album_id=$1', values: [albumId] };
+    const query = {
+      text: 'SELECT id, title, performer FROM songs WHERE album_id = $1',
+      values: [albumId],
+    };
     const res = await pool.query(query);
     return res.rows;
   }

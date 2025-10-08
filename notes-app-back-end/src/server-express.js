@@ -17,12 +17,14 @@ const createSongsRouter = require('./app/api/songs/routes');
 const app = express();
 app.use(express.json());
 
-// Inisialisasi service dan handler
+// Inisialisasi service
 const albumsService = new AlbumsService();
-const albumsHandler = new AlbumsHandler(albumsService, albumValidator);
+const songsService = new SongsService();
+
+// Inisialisasi handler
+const albumsHandler = new AlbumsHandler(albumsService, albumValidator, songsService);
 const albumsRouter = createAlbumsRouter(albumsHandler);
 
-const songsService = new SongsService();
 const songsHandler = new SongsHandler(songsService, songValidator);
 const songsRouter = createSongsRouter(songsHandler);
 
