@@ -1,18 +1,19 @@
 const Joi = require('joi');
+const InvariantError = require('../../utils/error/InvariantError');
 
-const schema = Joi.object({
+const SongPayloadSchema = Joi.object({
   title: Joi.string().required(),
-  year: Joi.number().integer().min(1900).max(new Date().getFullYear()).optional(),
-  performer: Joi.string().optional(),
+  year: Joi.number().integer().min(1900).max(new Date().getFullYear()).required(),
+  performer: Joi.string().required(),
   genre: Joi.string().optional(),
-  duration: Joi.number().integer().optional(),
-  albumId: Joi.string().optional().allow(null),
+  duration: Joi.number().optional(),
+  albumId: Joi.string().optional(),
 });
 
 const validateSong = (payload) => {
-  const { error } = schema.validate(payload);
+  const { error } = SongPayloadSchema.validate(payload);
   if (error) {
-    throw new Error(error.message);
+    throw new InvariantError(error.message);
   }
 };
 

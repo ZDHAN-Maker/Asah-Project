@@ -1,34 +1,15 @@
-const { deleteNoteByIdHandler } = require('./app/api/songs/handler');
-const { editNoteByIdHandler } = require('./app/api/songs/handler');
-const { getNoteByIdHandler } = require('./app/api/songs/handler');
-const { addNoteHandler, getAllNotesHandler } = require('./app/api/songs/handler');
+const express = require('express');
 
-const routes = [
-  {
-    method: 'POST',
-    path: '/notes',
-    handler: addNoteHandler,
-  },
-  {
-    method: 'GET',
-    path: '/notes',
-    handler: getAllNotesHandler,
-  },
-  {
-    method: 'GET',
-    path: '/notes/{id}',
-    handler: getNoteByIdHandler,
-  },
-  {
-    method: 'PUT',
-    path: '/notes/{id}',
-    handler: editNoteByIdHandler,
-  },
-  {
-    method: 'DELETE',
-    path: '/notes/{id}',
-    handler: deleteNoteByIdHandler,
-  },
-];
+const createSongsRouter = (handler) => {
+  const router = express.Router();
 
-module.exports = routes;
+  router.post('/', (req, res) => handler.postSongHandler(req, res));
+  router.get('/', (req, res) => handler.getSongsHandler(req, res));
+  router.get('/:id', (req, res) => handler.getSongByIdHandler(req, res));
+  router.put('/:id', (req, res) => handler.putSongByIdHandler(req, res));
+  router.delete('/:id', (req, res) => handler.deleteSongByIdHandler(req, res));
+
+  return router;
+};
+
+module.exports = createSongsRouter;

@@ -1,130 +1,152 @@
 const { nanoid } = require('nanoid');
-const notes = require('../../../notes');
+const InvariantError = require('../../utils/error/InvariantError');
 
-const addNoteHandler = (request, h) => {
-  const { title = 'untitled', tags, body } = request.payload;
-
-  const id = nanoid(16);
-  const createdAt = new Date().toISOString();
-  const updatedAt = createdAt;
-
-  const newNote = {
-    title, tags, body, id, createdAt, updatedAt,
-  };
-
-  notes.push(newNote);
-
-  const isSuccess = notes.filter((note) => note.id === id).length > 0;
-
-  if (isSuccess) {
-    const response = h.response({
-      status: 'success',
-      message: 'Catatan berhasil ditambahkan',
-      data: {
-        noteId: id,
-      },
-    });
-    response.code(201);
-    return response;
+class SongsHandler {
+  constructor(songsService, validator) {
+    this._service = songsService;
+    this._validator = validator;
   }
 
-  const response = h.response({
-    status: 'fail',
-    message: 'Catatan gagal ditambahkan',
-  });
-  response.code(500);
-  return response;
-};
+  // POST /songs
+  async postSongHandler(req, res) {
+    try {
+      this._validator.validateSong(req.body);
 
-const getAllNotesHandler = () => ({
-  status: 'success',
-  data: {
-    notes,
-  },
-});
+      const { title, year, performer, genre, duration, albumId } = req.body;
+      const id = nanoid(16);
+      const createdAt = new Date().toISOString();
+      const updatedAt = createdAt;
 
-const getNoteByIdHandler = (request, h) => {
-  const { id } = request.params;
+      const newSong = {
+        id,
+        title,
+        year,
+        performer,
+        genre,
+        duration,
+        albumId,
+        createdAt,
+        updatedAt,
+      };
 
-  const note = notes.filter((n) => n.id === id)[0];
+      await this._service.addSong(newSong);
 
-  if (note !== undefined) {
-    return {
-      status: 'success',
-      data: {
-        note,
-      },
-    };
+      return res.status(201).json({
+        status: 'success',
+        message: 'Lagu berhasil ditambahkan',
+        data: { songId: id },
+      });
+    } catch (error) {
+      if (error instanceof InvariantError) {
+        return res.status(400).json({
+          status: 'fail',
+          message: error.message,
+        });
+      }
+
+      console.error(error);
+      return res.status(500).json({
+        status: 'error',
+        message: 'Terjadi kesalahan pada server',
+      });
+    }
   }
 
-  const response = h.response({
-    status: 'fail',
-    message: 'Catatan tidak ditemukan',
-  });
-  response.code(404);
-  return response;
-};
-
-const editNoteByIdHandler = (request, h) => {
-  const { id } = request.params;
-
-  const { title, tags, body } = request.payload;
-  const updatedAt = new Date().toISOString();
-
-  const index = notes.findIndex((note) => note.id === id);
-
-  if (index !== -1) {
-    notes[index] = {
-      ...notes[index],
-      title,
-      tags,
-      body,
-      updatedAt,
-    };
-
-    const response = h.response({
-      status: 'success',
-      message: 'Catatan berhasil diperbarui',
-    });
-    response.code(200);
-    return response;
+  // GET /songs
+  async getSongsHandler(req, res) {
+    try {
+      const songs = await this._service.getSongs();
+      return res.json({
+        status: 'success',
+        data: { songs },
+      });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        status: 'error',
+        message: 'Gagal mengambil data lagu',
+      });
+    }
   }
 
-  const response = h.response({
-    status: 'fail',
-    message: 'Gagal memperbarui catatan. Id tidak ditemukan',
-  });
-  response.code(404);
-  return response;
-};
+  // GET /songs/:id
+  async getSongByIdHandler(req, res) {
+    try {
+      const { id } = req.params;
+      const song = await this._service.getSongById(id);
 
-const deleteNoteByIdHandler = (request, h) => {
-  const { id } = request.params;
+      if (!song) {
+        return res.status(404).json({
+          status: 'fail',
+          message: 'Lagu tidak ditemukan',
+        });
+      }
 
-  const index = notes.findIndex((note) => note.id === id);
-
-  if (index !== -1) {
-    notes.splice(index, 1);
-    const response = h.response({
-      status: 'success',
-      message: 'Catatan berhasil dihapus',
-    });
-    response.code(200);
-    return response;
+      return res.json({
+        status: 'success',
+        data: { song },
+      });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        status: 'error',
+        message: 'Terjadi kesalahan pada server',
+      });
+    }
   }
 
-  const response = h.response({
-    status: 'fail',
-    message: 'Catatan gagal dihapus. Id tidak ditemukan',
-  });
-  response.code(404);
-  return response;
-};
+  // PUT /songs/:id
+  async putSongByIdHandler(req, res) {
+    try {
+      this._validator.validateSong(req.body);
+      const { id } = req.params;
 
-module.exports = {
-  addNoteHandler,
-  getAllNotesHandler,
-  getNoteByIdHandler,
-  editNoteByIdHandler,
-  deleteNoteByIdHandler,
-};
+      await this._service.updateSongById(id, req.body);
+
+      return res.json({
+        status: 'success',
+        message: 'Lagu berhasil diperbarui',
+      });
+    } catch (error) {
+      if (error instanceof InvariantError) {
+        return res.status(400).json({
+          status: 'fail',
+          message: error.message,
+        });
+      }
+
+      return res.status(404).json({
+        status: 'fail',
+        message: 'Gagal memperbarui lagu. Id tidak ditemukan',
+      });
+    }
+  }
+
+  // DELETE /songs/:id
+  async deleteSongByIdHandler(req, res) {
+    try {
+      const { id } = req.params;
+      const deleted = await this._service.deleteSongById(id);
+
+      if (!deleted) {
+        return res.status(404).json({
+          status: 'fail',
+          message: 'Lagu gagal dihapus. Id tidak ditemukan',
+        });
+      }
+
+      return res.json({
+        status: 'success',
+        message: 'Lagu berhasil dihapus',
+      });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        status: 'error',
+        message: 'Terjadi kesalahan pada server',
+      });
+    }
+  }
+}
+
+module.exports = SongsHandler;
