@@ -1,5 +1,5 @@
 const ClientError = require('../../utils/error/ClientError');
-
+const NotFoundError = require('../../utils/error/NotFoundError');
 class SongsHandler {
   constructor(songsService, validator) {
     this._service = songsService;
@@ -148,9 +148,13 @@ class SongsHandler {
         message: 'Lagu berhasil dihapus',
       });
     } catch (error) {
+      if (error instanceof NotFoundError) {
+        return res.status(404).send();
+      }
+
       if (error instanceof ClientError) {
         return res.status(error.statusCode).json({
-          status: 'fail',
+          error: 'fail',
           message: error.message,
         });
       }
