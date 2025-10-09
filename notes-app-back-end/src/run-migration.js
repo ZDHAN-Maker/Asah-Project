@@ -15,13 +15,14 @@ const pool = require('./app/db/index');
       process.exit(0);
     }
 
-    for (const file of files) {
+    await files.reduce(async (prevPromise, file) => {
+      await prevPromise;
       const filePath = path.join(migrationsDir, file);
       const sql = fs.readFileSync(filePath, 'utf8');
-      console.log(`🚀 Running migration: ${file}`);
+      console.log(`Running migration: ${file}`);
       await pool.query(sql);
       console.log(`Successfully executed: ${file}\n`);
-    }
+    }, Promise.resolve());
 
     console.log('🎉 All migrations executed successfully!');
   } catch (err) {
