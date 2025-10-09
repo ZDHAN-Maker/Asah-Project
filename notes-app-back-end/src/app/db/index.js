@@ -7,12 +7,19 @@ const pool = new Pool({
   password: process.env.PGPASSWORD || '',
   database: process.env.PGDATABASE || 'openmusic',
   port: process.env.PGPORT ? parseInt(process.env.PGPORT, 10) : 5432,
-  ssl: false,
+  ssl:
+    process.env.PGSSL === 'true'
+      ? { rejectUnauthorized: false }
+      : false,
 });
 
-pool
-  .connect()
-  .then(() => console.log('PostgreSQL connected successfully!'))
-  .catch((err) => console.error('Failed to connect to PostgreSQL:', err));
+pool.on('connect', () => {
+  console.log('PostgreSQL connected successfully!');
+});
+
+pool.on('error', (err) => {
+  console.error('Unexpected error on PostgreSQL client:', err);
+  process.exit(-1);
+});
 
 module.exports = pool;

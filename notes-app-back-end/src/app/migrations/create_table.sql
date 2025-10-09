@@ -1,0 +1,26 @@
+
+
+-- Create table: albums
+CREATE TABLE IF NOT EXISTS albums (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  year INTEGER NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create table: songs
+CREATE TABLE IF NOT EXISTS songs (
+  id VARCHAR(21) PRIMARY KEY,
+  title TEXT NOT NULL,
+  year INTEGER,
+  performer TEXT,
+  genre TEXT,
+  duration INTEGER,
+  album_id TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_album FOREIGN KEY(album_id)
+    REFERENCES albums(id)
+    ON DELETE SET NULL
+);
