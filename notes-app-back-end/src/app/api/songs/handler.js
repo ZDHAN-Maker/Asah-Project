@@ -1,4 +1,3 @@
-const { nanoid } = require('nanoid');
 const ClientError = require('../../utils/error/ClientError');
 
 class SongsHandler {
@@ -9,31 +8,26 @@ class SongsHandler {
 
   async postSongHandler(req, res) {
     try {
+      // Validasi input
       this._validator.validateSong(req.body);
 
       const { title, year, performer, genre, duration, albumId } = req.body;
-      const id = `song-${nanoid(16)}`;
-      const timestamp = new Date().toISOString();
 
-      const newSong = {
-        id,
+      // ID akan dibuat di dalam service
+      const songId = await this._service.addSong({
         title,
         year,
         performer,
         genre,
         duration,
         albumId,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      };
-
-      await this._service.addSong(newSong);
+      });
 
       return res.status(201).json({
         status: 'success',
         message: 'Lagu berhasil ditambahkan',
         data: {
-          songId: id,
+          songId,
         },
       });
     } catch (error) {
