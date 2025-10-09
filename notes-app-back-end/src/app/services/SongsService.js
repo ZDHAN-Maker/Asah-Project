@@ -1,19 +1,36 @@
 const { nanoid } = require('nanoid');
 const pool = require('../db');
 const NotFoundError = require('../utils/error/NotFoundError');
-
+const InvariantError = require('../utils/error/InvariantError');
 class SongsService {
   async addSong({ title, year, performer, genre, duration, albumId }) {
+    if (albumId) {
+      const checkAlbum = await pool.query('SELECT id FROM albums WHERE id = $1', [albumId]);
+      if (!checkAlbum.rowCount) {
+        throw new InvariantError('Album tidak ditemukan');
+      }
+    }
+
     const id = `song-${nanoid(16)}`;
     const createdAt = new Date().toISOString();
     const updatedAt = createdAt;
+
     const query = {
-      text: `INSERT INTO songs(id,title,year,performer,genre,duration,album_id,created_at,updated_at)
-             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+      text: `
+        INSERT INTO songs(id, title, year, performer, genre, duration, album_id, created_at, updated_at)
+        VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id
+      `,
       values: [id, title, year, performer, genre, duration, albumId || null, createdAt, updatedAt],
     };
-    const res = await pool.query(query);
-    return res.rows[0].id;
+
+    const result = await pool.query(query);
+
+    if (!result.rowCount) {
+      throw new InvariantError('Lagu gagal ditambahkan');
+    }
+
+    return result.rows[0].id;
   }
 
   async getSongs({ title, performer }) {
