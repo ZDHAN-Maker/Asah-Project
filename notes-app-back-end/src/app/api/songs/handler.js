@@ -7,15 +7,13 @@ class SongsHandler {
     this._validator = validator;
   }
 
-  // POST /songs
   async postSongHandler(req, res) {
     try {
       this._validator.validateSong(req.body);
 
       const { title, year, performer, genre, duration, albumId } = req.body;
-      const id = nanoid(16);
-      const createdAt = new Date().toISOString();
-      const updatedAt = createdAt;
+      const id = `song-${nanoid(16)}`;
+      const timestamp = new Date().toISOString();
 
       const newSong = {
         id,
@@ -25,8 +23,8 @@ class SongsHandler {
         genre,
         duration,
         albumId,
-        createdAt,
-        updatedAt,
+        createdAt: timestamp,
+        updatedAt: timestamp,
       };
 
       await this._service.addSong(newSong);
@@ -34,7 +32,9 @@ class SongsHandler {
       return res.status(201).json({
         status: 'success',
         message: 'Lagu berhasil ditambahkan',
-        data: { songId: id },
+        data: {
+          songId: id,
+        },
       });
     } catch (error) {
       if (error instanceof ClientError) {
@@ -44,7 +44,7 @@ class SongsHandler {
         });
       }
 
-      console.error(error);
+      console.error('postSongHandler Error:', error);
       return res.status(500).json({
         status: 'error',
         message: 'Terjadi kesalahan pada server',
@@ -52,13 +52,19 @@ class SongsHandler {
     }
   }
 
-  // GET /songs
   async getSongsHandler(req, res) {
     try {
       const songs = await this._service.getSongs(req.query);
+
+      const simplifiedSongs = songs.map((song) => ({
+        id: song.id,
+        title: song.title,
+        performer: song.performer,
+      }));
+
       return res.status(200).json({
         status: 'success',
-        data: { songs },
+        data: { songs: simplifiedSongs },
       });
     } catch (error) {
       if (error instanceof ClientError) {
@@ -68,7 +74,7 @@ class SongsHandler {
         });
       }
 
-      console.error(error);
+      console.error('getSongsHandler Error:', error);
       return res.status(500).json({
         status: 'error',
         message: 'Gagal mengambil data lagu',
@@ -76,15 +82,24 @@ class SongsHandler {
     }
   }
 
-  // GET /songs/:id
   async getSongByIdHandler(req, res) {
     try {
       const { id } = req.params;
       const song = await this._service.getSongById(id);
 
+      const responseSong = {
+        id: song.id,
+        title: song.title,
+        year: song.year,
+        performer: song.performer,
+        genre: song.genre || null,
+        duration: song.duration || null,
+        albumId: song.albumId || null,
+      };
+
       return res.status(200).json({
         status: 'success',
-        data: { song },
+        data: { song: responseSong },
       });
     } catch (error) {
       if (error instanceof ClientError) {
@@ -94,7 +109,7 @@ class SongsHandler {
         });
       }
 
-      console.error(error);
+      console.error('getSongByIdHandler Error:', error);
       return res.status(500).json({
         status: 'error',
         message: 'Terjadi kesalahan pada server',
@@ -102,7 +117,6 @@ class SongsHandler {
     }
   }
 
-  // PUT /songs/:id
   async putSongByIdHandler(req, res) {
     try {
       this._validator.validateSong(req.body);
@@ -110,7 +124,7 @@ class SongsHandler {
 
       await this._service.updateSongById(id, req.body);
 
-      return res.json({
+      return res.status(200).json({
         status: 'success',
         message: 'Lagu berhasil diperbarui',
       });
@@ -122,7 +136,7 @@ class SongsHandler {
         });
       }
 
-      console.error(error);
+      console.error('putSongByIdHandler Error:', error);
       return res.status(500).json({
         status: 'error',
         message: 'Terjadi kesalahan pada server',
@@ -130,13 +144,12 @@ class SongsHandler {
     }
   }
 
-  // DELETE /songs/:id
   async deleteSongByIdHandler(req, res) {
     try {
       const { id } = req.params;
       await this._service.deleteSongById(id);
 
-      return res.json({
+      return res.status(200).json({
         status: 'success',
         message: 'Lagu berhasil dihapus',
       });
@@ -148,7 +161,7 @@ class SongsHandler {
         });
       }
 
-      console.error(error);
+      console.error('deleteSongByIdHandler Error:', error);
       return res.status(500).json({
         status: 'error',
         message: 'Terjadi kesalahan pada server',

@@ -10,7 +10,6 @@ const pool = new Pool({
   ssl: false,
 });
 
-// Tes koneksi otomatis
 pool
   .connect()
   .then(() => console.log('PostgreSQL connected successfully!'))
