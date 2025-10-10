@@ -4,7 +4,7 @@ const pool = require('./app/db/index');
 
 (async () => {
   try {
-    const migrationsDir = path.join(__dirname, 'migrations');
+    const migrationsDir = path.join(__dirname, '../migrations');
     const files = fs
       .readdirSync(migrationsDir)
       .filter((file) => file.endsWith('.sql'))
