@@ -138,34 +138,38 @@ class SongsHandler {
     }
   }
 
-  async deleteSongByIdHandler(req, res) {
-    try {
-      const { id } = req.params;
-      await this._service.deleteSongById(id);
+async deleteSongByIdHandler(req, res) {
+  try {
+    const { id } = req.params;
+    await this._service.deleteSongById(id);
 
-      return res.status(200).json({
-        status: 'success',
-        message: 'Lagu berhasil dihapus',
-      });
-    } catch (error) {
-      if (error instanceof NotFoundError) {
-        return res.status(404).send();
-      }
-
-      if (error instanceof ClientError) {
-        return res.status(error.statusCode).json({
-          error: 'fail',
-          message: error.message,
-        });
-      }
-
-      console.error('deleteSongByIdHandler Error:', error);
-      return res.status(500).json({
-        status: 'error',
-        message: 'Terjadi kesalahan pada server',
+    return res.status(200).json({
+      status: 'success',
+      message: 'Lagu berhasil dihapus',
+    });
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      return res.status(404).json({
+        status: 'fail',
+        message: error.message || 'Lagu tidak ditemukan',
       });
     }
+
+    if (error instanceof ClientError) {
+      return res.status(error.statusCode).json({
+        status: 'fail',
+        message: error.message,
+      });
+    }
+
+    console.error('deleteSongByIdHandler Error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Terjadi kesalahan pada server',
+    });
   }
+}
+
 }
 
 module.exports = SongsHandler;
