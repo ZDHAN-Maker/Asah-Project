@@ -1,103 +1,96 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const UserService = require('./service');
+const UsersService = require('./service/UsersService');
+const { validateCreateUser } = require('./validator');
 const ClientError = require('../../utils/error/ClientError');
-const { JWT_SECRET } = process.env; // Pastikan JWT_SECRET ada di .env
+
+const refreshStore = new Set();
 
 class UsersHandler {
-  // Registrasi pengguna
+  // POST /users
   async postUserHandler(req, res) {
     try {
+      validateCreateUser(req.body);
       const { username, password, fullname } = req.body;
 
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const user = await UserService.createUser({ username, password: hashedPassword, fullname });
+      await UsersService.verifyNewUsername(username);
+      const hashed = await bcrypt.hash(password, 10);
+      const userId = await UsersService.addUser({ username, password: hashed, fullname });
 
-      return res.status(201).json({
-        status: 'success',
-        data: { userId: user.id }
-      });
-    } catch (error) {
-      console.error('User Registration Error:', error);
-      return res.status(500).json({
-        status: 'error',
-        message: 'Failed to register user'
-      });
+      return res.status(201).json({ status: 'success', data: { userId } });
+    } catch (e) {
+      if (e instanceof ClientError) {
+        return res.status(e.statusCode).json({ status: 'fail', message: e.message });
+      }
+      return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
 
-  // Login pengguna (untuk mendapatkan accessToken dan refreshToken)
-  async postAuthenticationHandler(req, res) {
+  // POST /authentications
+  async loginHandler(req, res) {
     try {
-      const { username, password } = req.body;
-
-      const user = await UserService.findUserByUsername(username);
-      if (!user || !(await bcrypt.compare(password, user.password))) {
-        throw new ClientError('Invalid credentials');
+      const { username, password } = req.body || {};
+      if (!username || !password) {
+        return res.status(400).json({ status: 'fail', message: 'Invalid payload' });
       }
 
-      // Membuat JWT token dan refresh token
-      const accessToken = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '1h' });
-      const refreshToken = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
+      const user = await UsersService.getUserByUsername(username);
+      if (!user) return res.status(401).json({ status: 'fail', message: 'Kredensial tidak valid' });
 
-      return res.status(201).json({
-        status: 'success',
-        data: { accessToken, refreshToken }
-      });
-    } catch (error) {
-      if (error instanceof ClientError) {
-        return res.status(error.statusCode).json({
-          status: 'fail',
-          message: error.message
-        });
+      const ok = await bcrypt.compare(password, user.password);
+      if (!ok) return res.status(401).json({ status: 'fail', message: 'Kredensial tidak valid' });
+
+      const accessToken = jwt.sign(
+        { userId: user.id, username: user.username },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+      );
+      const refreshToken = jwt.sign(
+        { userId: user.id, username: user.username },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+      refreshStore.add(refreshToken);
+
+      return res.status(201).json({ status: 'success', data: { accessToken, refreshToken } });
+    } catch {
+      return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
+    }
+  }
+
+  // PUT /authentications
+  async refreshHandler(req, res) {
+    try {
+      const { refreshToken } = req.body || {};
+      if (!refreshToken) return res.status(400).json({ status: 'fail', message: 'Invalid payload' });
+      if (!refreshStore.has(refreshToken)) {
+        return res.status(400).json({ status: 'fail', message: 'Refresh token tidak valid' });
       }
-      console.error('Authentication Error:', error);
-      return res.status(500).json({
-        status: 'error',
-        message: 'Failed to authenticate user'
-      });
+
+      const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+      const accessToken = jwt.sign(
+        { userId: decoded.userId, username: decoded.username },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+      );
+      return res.status(200).json({ status: 'success', data: { accessToken } });
+    } catch {
+      return res.status(400).json({ status: 'fail', message: 'Refresh token tidak valid' });
     }
   }
 
-  // Update access token menggunakan refresh token
-  async putAuthenticationHandler(req, res) {
+  // DELETE /authentications
+  async logoutHandler(req, res) {
     try {
-      const { refreshToken } = req.body;
-
-      // Verifikasi refresh token dan buat access token baru
-      const decoded = jwt.verify(refreshToken, JWT_SECRET);
-      const accessToken = jwt.sign({ userId: decoded.userId }, JWT_SECRET, { expiresIn: '1h' });
-
-      return res.status(200).json({
-        status: 'success',
-        data: { accessToken }
-      });
-    } catch (error) {
-      console.error('Refresh Token Error:', error);
-      return res.status(401).json({
-        status: 'fail',
-        message: 'Invalid refresh token'
-      });
-    }
-  }
-
-  // Menghapus autentikasi (logout)
-  async deleteAuthenticationHandler(req, res) {
-    try {
-      const { refreshToken } = req.body;
-
-      // Hapus refresh token dari klien
-      return res.status(200).json({
-        status: 'success',
-        message: 'Authentication deleted successfully'
-      });
-    } catch (error) {
-      console.error('Logout Error:', error);
-      return res.status(500).json({
-        status: 'error',
-        message: 'Failed to delete authentication'
-      });
+      const { refreshToken } = req.body || {};
+      if (!refreshToken) return res.status(400).json({ status: 'fail', message: 'Invalid payload' });
+      if (!refreshStore.has(refreshToken)) {
+        return res.status(400).json({ status: 'fail', message: 'Refresh token tidak valid' });
+      }
+      refreshStore.delete(refreshToken);
+      return res.status(200).json({ status: 'success', message: 'Authentication deleted' });
+    } catch {
+      return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
 }
