@@ -1,5 +1,5 @@
 const { nanoid } = require('nanoid');
-const pool = require('../../db'); // src/app/db/index.js harus export pool
+const pool = require('../../db');
 const InvariantError = require('../../utils/error/InvariantError');
 
 class UsersService {
@@ -10,7 +10,7 @@ class UsersService {
 
   async addUser({ username, password, fullname }) {
     const id = `user-${nanoid(16)}`;
-    const q = `INSERT INTO users (id, username, password, fullname) VALUES ($1,$2,$3,$4) RETURNING id`;
+    const q = 'NSERT INTO users (id, username, password, fullname) VALUES ($1,$2,$3,$4) RETURNING id';
     const { rows } = await pool.query(q, [id, username, password, fullname]);
     return rows[0].id;
   }
