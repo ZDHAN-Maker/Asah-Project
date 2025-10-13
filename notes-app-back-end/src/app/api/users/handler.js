@@ -1,6 +1,6 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const UsersService = require('./service/UsersService');
+const UsersService = require('../../services/UsersService');
 const { validateCreateUser } = require('./validator');
 const ClientError = require('../../utils/error/ClientError');
 

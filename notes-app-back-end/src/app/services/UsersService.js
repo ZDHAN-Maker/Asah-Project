@@ -1,6 +1,6 @@
 const { nanoid } = require('nanoid');
-const pool = require('../../db');
-const InvariantError = require('../../utils/error/InvariantError');
+const pool = require('../db/index');
+const InvariantError = require('../utils/error/InvariantError');
 
 class UsersService {
   async verifyNewUsername(username) {

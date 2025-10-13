@@ -1,7 +1,7 @@
 const { nanoid } = require('nanoid');
-const pool = require('../../db');
-const NotFoundError = require('../../utils/error/NotFoundError');
-const ClientError = require('../../utils/error/ClientError');
+const pool = require('../db/index');
+const NotFoundError = require('../utils/error/NotFoundError');
+const ClientError = require('../utils/error/ClientError');
 
 class PlaylistsService {
   async create({ name, owner }) {

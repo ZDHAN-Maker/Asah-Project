@@ -1,12 +1,16 @@
 const express = require('express');
 const UsersHandler = require('./handler');
 
-module.exports = () => {
+const createUsersRouter = () => {
   const router = express.Router();
-  router.post('/users', (req, res) => UsersHandler.postUserHandler(req, res));
 
+  // Definisikan endpoint untuk Users
+  router.post('/', (req, res) => UsersHandler.postUserHandler(req, res));
   router.post('/authentications', (req, res) => UsersHandler.loginHandler(req, res));
   router.put('/authentications', (req, res) => UsersHandler.refreshHandler(req, res));
   router.delete('/authentications', (req, res) => UsersHandler.logoutHandler(req, res));
+
   return router;
 };
+
+module.exports = createUsersRouter;
