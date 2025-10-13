@@ -5,7 +5,6 @@ const createUsersRouter = () => {
   const router = express.Router();
   const usersHandler = new UsersHandler();
 
-  // Define endpoints for Users
   router.post('/', (req, res) => usersHandler.postUserHandler(req, res));
   router.post('/authentications', (req, res) => usersHandler.loginHandler(req, res));
   router.put('/authentications', (req, res) => usersHandler.refreshHandler(req, res));
