@@ -1,5 +1,6 @@
 const ClientError = require('../../utils/error/ClientError');
 const NotFoundError = require('../../utils/error/NotFoundError');
+
 class SongsHandler {
   constructor(songsService, validator) {
     this._service = songsService;
@@ -8,12 +9,8 @@ class SongsHandler {
 
   async postSongHandler(req, res) {
     try {
-      // Validasi input
       this._validator.validateSong(req.body);
-
       const { title, year, performer, genre, duration, albumId } = req.body;
-
-      // ID akan dibuat di dalam service
       const songId = await this._service.addSong({
         title,
         year,
@@ -37,7 +34,6 @@ class SongsHandler {
           message: error.message,
         });
       }
-
       console.error('postSongHandler Error:', error);
       return res.status(500).json({
         status: 'error',
@@ -49,7 +45,6 @@ class SongsHandler {
   async getSongsHandler(req, res) {
     try {
       const songs = await this._service.getSongs(req.query);
-
       const simplifiedSongs = songs.map((song) => ({
         id: song.id,
         title: song.title,
@@ -67,7 +62,6 @@ class SongsHandler {
           message: error.message,
         });
       }
-
       console.error('getSongsHandler Error:', error);
       return res.status(500).json({
         status: 'error',
@@ -80,7 +74,6 @@ class SongsHandler {
     try {
       const { id } = req.params;
       const song = await this._service.getSongById(id);
-
       const responseSong = {
         id: song.id,
         title: song.title,
@@ -102,7 +95,6 @@ class SongsHandler {
           message: error.message,
         });
       }
-
       console.error('getSongByIdHandler Error:', error);
       return res.status(500).json({
         status: 'error',
@@ -115,7 +107,6 @@ class SongsHandler {
     try {
       this._validator.validateSong(req.body);
       const { id } = req.params;
-
       await this._service.updateSongById(id, req.body);
 
       return res.status(200).json({
@@ -129,7 +120,6 @@ class SongsHandler {
           message: error.message,
         });
       }
-
       console.error('putSongByIdHandler Error:', error);
       return res.status(500).json({
         status: 'error',
@@ -138,38 +128,35 @@ class SongsHandler {
     }
   }
 
-async deleteSongByIdHandler(req, res) {
-  try {
-    const { id } = req.params;
-    await this._service.deleteSongById(id);
+  async deleteSongByIdHandler(req, res) {
+    try {
+      const { id } = req.params;
+      await this._service.deleteSongById(id);
 
-    return res.status(200).json({
-      status: 'success',
-      message: 'Lagu berhasil dihapus',
-    });
-  } catch (error) {
-    if (error instanceof NotFoundError) {
-      return res.status(404).json({
-        status: 'fail',
-        message: error.message || 'Lagu tidak ditemukan',
+      return res.status(200).json({
+        status: 'success',
+        message: 'Lagu berhasil dihapus',
+      });
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({
+          status: 'fail',
+          message: error.message || 'Lagu tidak ditemukan',
+        });
+      }
+      if (error instanceof ClientError) {
+        return res.status(error.statusCode).json({
+          status: 'fail',
+          message: error.message,
+        });
+      }
+      console.error('deleteSongByIdHandler Error:', error);
+      return res.status(500).json({
+        status: 'error',
+        message: 'Terjadi kesalahan pada server',
       });
     }
-
-    if (error instanceof ClientError) {
-      return res.status(error.statusCode).json({
-        status: 'fail',
-        message: error.message,
-      });
-    }
-
-    console.error('deleteSongByIdHandler Error:', error);
-    return res.status(500).json({
-      status: 'error',
-      message: 'Terjadi kesalahan pada server',
-    });
   }
-}
-
 }
 
 module.exports = SongsHandler;
