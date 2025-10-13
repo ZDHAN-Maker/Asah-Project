@@ -1,5 +1,5 @@
 const Joi = require('joi');
-const InvariantError = require('../../utils/error/InvariantError');
+const ClientError = require('../../utils/error/ClientError');
 
 const userSchema = Joi.object({
   username: Joi.string().min(3).required(),
@@ -7,7 +7,10 @@ const userSchema = Joi.object({
   fullname: Joi.string().min(1).required(),
 });
 
-exports.validateCreateUser = (payload) => {
-  const { error } = userSchema.validate(payload);
-  if (error) throw new InvariantError(error.message);
+exports.validateCreateUser = (body) => {
+  const { error } = userSchema.validate(body);
+
+  if (error) {
+    throw new ClientError(400, error.details[0].message);
+  }
 };

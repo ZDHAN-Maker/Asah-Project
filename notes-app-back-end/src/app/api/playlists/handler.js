@@ -1,5 +1,5 @@
 const ClientError = require('../../utils/error/ClientError');
-const PlaylistsService = require('./service/PlaylistsService');
+const PlaylistsService = require('../../services/PlayListsService');
 const { validateCreate, validateSongPayload } = require('./validator');
 
 class PlaylistsHandler {
@@ -80,4 +80,4 @@ class PlaylistsHandler {
     }
   }
 }
-module.exports = new PlaylistsHandler();
+module.exports = PlaylistsHandler;

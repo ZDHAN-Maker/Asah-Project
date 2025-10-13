@@ -91,4 +91,4 @@ class PlaylistsService {
     return rows;
   }
 }
-module.exports = new PlaylistsService();
+module.exports = PlaylistsService;

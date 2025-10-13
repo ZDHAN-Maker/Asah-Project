@@ -9,22 +9,25 @@ const refreshStore = new Set();
 class UsersHandler {
   // POST /users
   async postUserHandler(req, res) {
-    try {
-      validateCreateUser(req.body);
-      const { username, password, fullname } = req.body;
+  try {
+    validateCreateUser(req.body);
+    const { username, password, fullname } = req.body;
 
-      await UsersService.verifyNewUsername(username);
-      const hashed = await bcrypt.hash(password, 10);
-      const userId = await UsersService.addUser({ username, password: hashed, fullname });
+    await UsersService.verifyNewUsername(username);
+    const hashed = await bcrypt.hash(password, 10);
+    const userId = await UsersService.addUser({ username, password: hashed, fullname });
 
-      return res.status(201).json({ status: 'success', data: { userId } });
-    } catch (e) {
-      if (e instanceof ClientError) {
-        return res.status(e.statusCode).json({ status: 'fail', message: e.message });
-      }
-      return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
+    return res.status(201).json({ status: 'success', data: { userId } });
+  } catch (e) {
+    console.error(e);
+
+    if (e instanceof ClientError) {
+      return res.status(e.statusCode).json({ status: 'fail', message: e.message });
     }
+
+    return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
   }
+}
 
   // POST /authentications
   async loginHandler(req, res) {
@@ -95,4 +98,4 @@ class UsersHandler {
   }
 }
 
-module.exports = new UsersHandler();
+module.exports = UsersHandler;

@@ -18,10 +18,10 @@ const SongsHandler = require('./app/api/songs/handler');
 const createSongsRouter = require('./app/api/songs/routes');
 
 // Playlists
-const PlaylistsService = require('./app/services/PlaylistsService');
+const PlaylistsService = require('./app/services/PlayListsService');
 const playlistsValidator = require('./app/api/playlists/validator');
 const PlaylistsHandler = require('./app/api/playlists/handler');
-const createPlaylistsRouter = require('./app/api/playlists/routes');
+const createPlaylistsRouter = require('./app/api/playlists/route');
 
 // Inisialisasi express
 const app = express();
