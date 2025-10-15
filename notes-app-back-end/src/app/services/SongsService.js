@@ -2,9 +2,8 @@ const { nanoid } = require('nanoid');
 const pool = require('../db');
 const NotFoundError = require('../utils/error/NotFoundError');
 const InvariantError = require('../utils/error/InvariantError');
-const ClientError = require('../utils/error/ClientError');
 class SongsService {
-  async addSong({ title, year, performer, genre, duration, albumId, playlistId, userId }) {
+  async addSong({ title, year, performer, genre, duration, albumId }) {
     if (albumId) {
       const checkAlbum = await pool.query('SELECT id FROM albums WHERE id = $1', [albumId]);
       if (!checkAlbum.rowCount) {
@@ -18,10 +17,10 @@ class SongsService {
 
     const query = {
       text: `
-      INSERT INTO songs(id, title, year, performer, genre, duration, album_id, created_at, updated_at)
-      VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING id
-    `,
+        INSERT INTO songs(id, title, year, performer, genre, duration, album_id, created_at, updated_at)
+        VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id
+      `,
       values: [id, title, year, performer, genre, duration, albumId || null, createdAt, updatedAt],
     };
 
@@ -31,27 +30,7 @@ class SongsService {
       throw new InvariantError('Lagu gagal ditambahkan');
     }
 
-    const songId = result.rows[0].id;
-
-    // Check if the user is authorized to add the song to the playlist
-    const checkPlaylistOwner = await pool.query('SELECT owner FROM playlists WHERE id = $1', [
-      playlistId,
-    ]);
-
-    if (!checkPlaylistOwner.rowCount || checkPlaylistOwner.rows[0].owner !== userId) {
-      throw new ClientError(
-        'Anda tidak memiliki akses untuk menambahkan lagu ke playlist ini',
-        403
-      );
-    }
-
-    // Add the song to the playlist
-    await pool.query('INSERT INTO playlist_songs(playlist_id, song_id) VALUES($1, $2)', [
-      playlistId,
-      songId,
-    ]);
-
-    return songId;
+    return result.rows[0].id;
   }
 
   async getSongs({ title, performer }) {

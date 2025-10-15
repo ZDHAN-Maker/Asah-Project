@@ -1,6 +1,7 @@
 const ClientError = require('../../utils/error/ClientError');
 const PlaylistsService = require('../../services/PlayListsService'); // Mengimpor PlaylistsService
 const InvariantError = require('../../utils/error/InvariantError');
+const NotFoundError = require('../../utils/error/NotFoundError');
 const { validateCreate, validateSongPayload } = require('./validator');
 
 class PlaylistsHandler {
@@ -68,13 +69,13 @@ class PlaylistsHandler {
   async postSong(req, res) {
     try {
       const { title, year, performer, genre, duration, albumId } = req.body;
-      const { id: playlistId } = req.params;
-      const { userId } = req.auth;
+      const { id: playlistId } = req.params; // Destructuring playlistId dari req.params
+      const { userId } = req.auth; // Destructuring userId dari req.auth
 
-      // Validate song payload
+      // Validasi payload lagu
       validateSongPayload(req.body);
 
-      // Add the song and associate it with the playlist
+      // Menambahkan lagu dan menghubungkannya dengan playlist
       const songId = await this.playlistsService.addSong({
         title,
         year,
@@ -83,15 +84,21 @@ class PlaylistsHandler {
         duration,
         albumId,
         playlistId,
+        userId, // Pass userId untuk pengecekan izin
       });
 
-      // Respond with success
+      // Mengirimkan respon sukses
       return res.status(201).json({
         status: 'success',
         message: 'Lagu berhasil ditambahkan ke playlist',
         data: { songId },
       });
     } catch (e) {
+      if (e instanceof NotFoundError) {
+        // Menangani error jika lagu tidak ditemukan (status 404)
+        return res.status(404).json({ status: 'fail', message: e.message });
+      }
+
       if (e instanceof InvariantError) {
         return res.status(400).json({ status: 'fail', message: e.message });
       }
