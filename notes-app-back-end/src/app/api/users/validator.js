@@ -11,6 +11,6 @@ exports.validateCreateUser = (body) => {
   const { error } = userSchema.validate(body);
 
   if (error) {
-    throw new ClientError(400, error.details[0].message);
+    throw new ClientError(error.details[0].message, 400);
   }
 };
