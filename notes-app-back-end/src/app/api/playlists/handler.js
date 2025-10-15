@@ -1,16 +1,41 @@
 const ClientError = require('../../utils/error/ClientError');
-const PlaylistsService = require('../../services/PlayListsService');
+const PlaylistsService = require('../../services/PlayListsService'); // Mengimpor PlaylistsService
+const InvariantError = require('../../utils/error/InvariantError');
 const { validateCreate, validateSongPayload } = require('./validator');
 
 class PlaylistsHandler {
+  // Membuat instance PlaylistsService
+  constructor() {
+    this.playlistsService = new PlaylistsService();
+  }
+
   // POST /playlists
   async postPlaylist(req, res) {
     try {
+      // Validasi input yang dikirim
       validateCreate(req.body);
-      const id = await PlaylistsService.create({ name: req.body.name, owner: req.auth.userId });
+
+      // Coba buat playlist dan dapatkan ID
+      const id = await this.playlistsService.create({
+        name: req.body.name,
+        owner: req.auth.userId,
+      });
+
+      // Jika berhasil, kembalikan response status 201
       return res.status(201).json({ status: 'success', data: { playlistId: id } });
     } catch (e) {
-      if (e instanceof ClientError) return res.status(e.statusCode).json({ status: 'fail', message: e.message });
+      // Menangani InvariantError (validasi)
+      if (e instanceof InvariantError) {
+        return res.status(400).json({ status: 'fail', message: e.message });
+      }
+
+      // Jika error adalah ClientError, kembalikan status 400
+      if (e instanceof ClientError) {
+        return res.status(e.statusCode).json({ status: 'fail', message: e.message });
+      }
+
+      // Jika ada error lainnya (misalnya, error server), kembalikan status 500
+      console.error(e); // Log error untuk debugging lebih lanjut
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
@@ -18,9 +43,10 @@ class PlaylistsHandler {
   // GET /playlists
   async getPlaylists(req, res) {
     try {
-      const playlists = await PlaylistsService.getForUser(req.auth.userId);
+      const playlists = await this.playlistsService.getForUser(req.auth.userId);
       return res.status(200).json({ status: 'success', data: { playlists } });
-    } catch {
+    } catch (e) {
+      // Menangani error jika terjadi
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
@@ -28,10 +54,12 @@ class PlaylistsHandler {
   // DELETE /playlists/:id
   async deletePlaylist(req, res) {
     try {
-      await PlaylistsService.delete(req.params.id, req.auth.userId);
+      await this.playlistsService.delete(req.params.id, req.auth.userId);
       return res.status(200).json({ status: 'success', message: 'Playlist berhasil dihapus' });
     } catch (e) {
-      if (e instanceof ClientError) return res.status(e.statusCode).json({ status: 'fail', message: e.message });
+      if (e instanceof ClientError) {
+        return res.status(e.statusCode).json({ status: 'fail', message: e.message });
+      }
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
@@ -39,21 +67,51 @@ class PlaylistsHandler {
   // POST/GET/DELETE /playlists/:id/songs
   async postSong(req, res) {
     try {
+      const { title, year, performer, genre, duration, albumId } = req.body;
+      const { id: playlistId } = req.params;
+      const { userId } = req.auth;
+
+      // Validate song payload
       validateSongPayload(req.body);
-      await PlaylistsService.addSong(req.params.id, req.body.songId, req.auth.userId);
-      return res.status(201).json({ status: 'success', message: 'Lagu berhasil ditambahkan ke playlist' });
+
+      // Add the song and associate it with the playlist
+      const songId = await this.playlistsService.addSong({
+        title,
+        year,
+        performer,
+        genre,
+        duration,
+        albumId,
+        playlistId,
+      });
+
+      // Respond with success
+      return res.status(201).json({
+        status: 'success',
+        message: 'Lagu berhasil ditambahkan ke playlist',
+        data: { songId },
+      });
     } catch (e) {
-      if (e instanceof ClientError) return res.status(e.statusCode).json({ status: 'fail', message: e.message });
+      if (e instanceof InvariantError) {
+        return res.status(400).json({ status: 'fail', message: e.message });
+      }
+
+      if (e instanceof ClientError) {
+        return res.status(e.statusCode).json({ status: 'fail', message: e.message });
+      }
+
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
 
   async getSongs(req, res) {
     try {
-      const songs = await PlaylistsService.getSongs(req.params.id, req.auth.userId);
+      const songs = await this.playlistsService.getSongs(req.params.id, req.auth.userId);
       return res.status(200).json({ status: 'success', data: { songs } });
     } catch (e) {
-      if (e instanceof ClientError) return res.status(e.statusCode).json({ status: 'fail', message: e.message });
+      if (e instanceof ClientError) {
+        return res.status(e.statusCode).json({ status: 'fail', message: e.message });
+      }
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
@@ -61,10 +119,14 @@ class PlaylistsHandler {
   async deleteSong(req, res) {
     try {
       validateSongPayload(req.body);
-      await PlaylistsService.deleteSong(req.params.id, req.body.songId, req.auth.userId);
-      return res.status(200).json({ status: 'success', message: 'Lagu berhasil dihapus dari playlist' });
+      await this.playlistsService.deleteSong(req.params.id, req.body.songId, req.auth.userId);
+      return res
+        .status(200)
+        .json({ status: 'success', message: 'Lagu berhasil dihapus dari playlist' });
     } catch (e) {
-      if (e instanceof ClientError) return res.status(e.statusCode).json({ status: 'fail', message: e.message });
+      if (e instanceof ClientError) {
+        return res.status(e.statusCode).json({ status: 'fail', message: e.message });
+      }
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
@@ -72,12 +134,15 @@ class PlaylistsHandler {
   // [opsional] GET /playlists/:id/activities
   async getActivities(req, res) {
     try {
-      const activities = await PlaylistsService.getActivities(req.params.id, req.auth.userId);
+      const activities = await this.playlistsService.getActivities(req.params.id, req.auth.userId);
       return res.status(200).json({ status: 'success', data: { activities } });
     } catch (e) {
-      if (e instanceof ClientError) return res.status(e.statusCode).json({ status: 'fail', message: e.message });
+      if (e instanceof ClientError) {
+        return res.status(e.statusCode).json({ status: 'fail', message: e.message });
+      }
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
 }
+
 module.exports = PlaylistsHandler;

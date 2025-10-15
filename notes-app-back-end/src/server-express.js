@@ -21,7 +21,7 @@ const createSongsRouter = require('./app/api/songs/routes');
 const PlaylistsService = require('./app/services/PlayListsService');
 const playlistsValidator = require('./app/api/playlists/validator');
 const PlaylistsHandler = require('./app/api/playlists/handler');
-const createPlaylistsRouter = require('./app/api/playlists/route');
+const createPlaylistsRouter = require('./app/api/playlists/routes');
 
 // Inisialisasi express
 const app = express();
@@ -49,7 +49,7 @@ app.use('/albums', albumsRouter);
 app.use('/songs', songsRouter);
 app.use('/', usersRouter);
 app.use('/users', usersRouter);
-app.use('/playlists', playlistsRouter);
+app.use('/', playlistsRouter);
 
 // Jalankan server
 const PORT = process.env.PORT || 5000;
