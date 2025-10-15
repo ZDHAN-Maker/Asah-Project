@@ -47,6 +47,7 @@ const playlistsRouter = createPlaylistsRouter(playlistsHandler);
 // Gunakan router
 app.use('/albums', albumsRouter);
 app.use('/songs', songsRouter);
+app.use('/', usersRouter);
 app.use('/users', usersRouter);
 app.use('/playlists', playlistsRouter);
 
