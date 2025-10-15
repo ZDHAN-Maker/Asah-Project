@@ -70,32 +70,42 @@ class PlaylistsService {
   }
 
   async addSong(playlistId, songId, userId) {
-    await this.verifyAccess(playlistId, userId);
+    try {
+      await this.verifyAccess(playlistId, userId); // Memeriksa hak akses
 
-    // Ubah query untuk memeriksa keberadaan songId dengan lebih jelas
-    const songCheck = await pool.query('SELECT id FROM songs WHERE id = $1', [songId]);
-    console.log('songCheck result:', songCheck); // Debug log untuk hasil query
+      // Mengecek apakah lagu ada di dalam database
+      console.log('songId received:', songId);
+      const songCheck = await pool.query('SELECT id FROM songs WHERE id = $1', [songId]);
+      console.log('songCheck result:', songCheck); // Log hasil pengecekan lagu
 
-    if (songCheck.rowCount === 0) {
-      console.log(`Song not found: ${songId}`); // Debug log jika lagu tidak ditemukan
-      throw new NotFoundError('Song not found');
+      if (songCheck.rowCount === 0) {
+        console.log(`Song not found: ${songId}`); // Log jika lagu tidak ditemukan
+        throw new NotFoundError('Song not found');
+      }
+
+      // Membuat ID untuk entri baru di playlist_songs
+      const id = `ps-${nanoid(16)}`;
+      console.log(`Inserting into playlist_songs with ID: ${id}`);
+
+      // Memasukkan lagu ke dalam playlist_songs
+      const result = await pool.query(
+        'INSERT INTO playlist_songs (id,playlist_id,song_id) VALUES ($1,$2,$3)',
+        [id, playlistId, songId]
+      );
+      console.log('Inserted into playlist_songs successfully', result); // Log hasil query
+
+      // Memasukkan aktivitas ke dalam playlist_activities
+      const activityId = `act-${nanoid(16)}`;
+      console.log(`Inserting into playlist_activities with ID: ${activityId}`);
+      const activityResult = await pool.query(
+        'INSERT INTO playlist_activities (id,playlist_id,song_id,user_id,action) VALUES ($1,$2,$3,$4,$5)',
+        [activityId, playlistId, songId, userId, 'add']
+      );
+      console.log('Inserted into playlist_activities successfully', activityResult); // Log hasil query
+    } catch (error) {
+      console.error('Error adding song:', error); // Log error jika terjadi
+      throw new ClientError(500, 'Database error occurred while adding song to playlist');
     }
-
-    const id = `ps-${nanoid(16)}`;
-    console.log(`Inserting into playlist_songs with ID: ${id}`);
-    await pool.query('INSERT INTO playlist_songs (id,playlist_id,song_id) VALUES ($1,$2,$3)', [
-      id,
-      playlistId,
-      songId,
-    ]);
-    console.log('Inserted into playlist_songs successfully');
-
-    console.log(`Inserting into playlist_activities with ID: act-${nanoid(16)}`);
-    await pool.query(
-      'INSERT INTO playlist_activities (id,playlist_id,song_id,user_id,action) VALUES ($1,$2,$3,$4,$5)',
-      [`act-${nanoid(16)}`, playlistId, songId, userId, 'add']
-    );
-    console.log('Inserted into playlist_activities successfully');
   }
 
   async getSongs(playlistId, userId) {
