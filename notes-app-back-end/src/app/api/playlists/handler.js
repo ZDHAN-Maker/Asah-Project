@@ -4,7 +4,6 @@ const InvariantError = require('../../utils/error/InvariantError');
 const { validateCreate, validateSongPayload } = require('./validator');
 
 class PlaylistsHandler {
-  // Membuat instance PlaylistsService
   constructor() {
     this.playlistsService = new PlaylistsService();
   }
@@ -12,29 +11,27 @@ class PlaylistsHandler {
   // POST /playlists
   async postPlaylist(req, res) {
     try {
-      // Validasi input yang dikirim
-      validateCreate(req.body);
+      validateCreate(req.body); // Validasi input yang dikirim
 
-      // Coba buat playlist dan dapatkan ID
       const id = await this.playlistsService.create({
         name: req.body.name,
         owner: req.auth.userId,
       });
 
       // Jika berhasil, kembalikan response status 201
-      return res.status(201).json({ status: 'success', data: { playlistId: id } });
+      return res.status(201).json({
+        status: 'success',
+        data: { playlistId: id },
+      });
     } catch (e) {
-      // Menangani InvariantError (validasi)
       if (e instanceof InvariantError) {
         return res.status(400).json({ status: 'fail', message: e.message });
       }
 
-      // Jika error adalah ClientError, kembalikan status 400
       if (e instanceof ClientError) {
         return res.status(e.statusCode).json({ status: 'fail', message: e.message });
       }
 
-      // Jika ada error lainnya (misalnya, error server), kembalikan status 500
       console.error(e); // Log error untuk debugging lebih lanjut
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
@@ -46,7 +43,6 @@ class PlaylistsHandler {
       const playlists = await this.playlistsService.getForUser(req.auth.userId);
       return res.status(200).json({ status: 'success', data: { playlists } });
     } catch (e) {
-      // Menangani error jika terjadi
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }

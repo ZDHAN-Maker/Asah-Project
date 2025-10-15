@@ -16,8 +16,9 @@ class PlaylistsService {
         [id, name, owner]
       );
 
+      // Perbaiki status code yang digunakan untuk error saat query gagal
       if (result.rowCount === 0) {
-        throw new ClientError(500, 'Failed to create playlist');
+        throw new ClientError(400, 'Failed to create playlist');
       }
 
       return id; // Kembalikan id playlist yang baru dibuat
@@ -28,7 +29,6 @@ class PlaylistsService {
   }
 
   async getForUser(userId) {
-    // owner atau kolaborator
     const q = `
       SELECT p.id, p.name, u.username AS username
       FROM playlists p
@@ -46,26 +46,22 @@ class PlaylistsService {
   }
 
   async verifyAccess(playlistId, userId) {
-    // Memeriksa apakah pengguna adalah pemilik playlist
     const { rowCount } = await pool.query('SELECT 1 FROM playlists WHERE id=$1 AND owner=$2', [
       playlistId,
       userId,
     ]);
     if (rowCount) return true;
 
-    // Memeriksa apakah pengguna adalah kolaborator
     const collab = await pool.query(
       'SELECT 1 FROM collaborations WHERE playlist_id=$1 AND user_id=$2',
       [playlistId, userId]
     );
     if (collab.rowCount) return true;
 
-    // Jika tidak memiliki akses, lemparkan error 403
     throw new ClientError('Anda tidak berhak mengakses resource ini', 403);
   }
 
   async delete(playlistId, userId) {
-    // hanya owner
     const { rowCount } = await pool.query('DELETE FROM playlists WHERE id=$1 AND owner=$2', [
       playlistId,
       userId,
@@ -74,26 +70,32 @@ class PlaylistsService {
   }
 
   async addSong(playlistId, songId, userId) {
-    // Memeriksa hak akses terlebih dahulu
     await this.verifyAccess(playlistId, userId);
 
-    // Cek apakah songId valid di database
-    const songCheck = await pool.query('SELECT 1 FROM songs WHERE id = $1', [songId]);
+    // Ubah query untuk memeriksa keberadaan songId dengan lebih jelas
+    const songCheck = await pool.query('SELECT id FROM songs WHERE id = $1', [songId]);
+    console.log('songCheck result:', songCheck); // Debug log untuk hasil query
+
     if (songCheck.rowCount === 0) {
-      // Jika lagu tidak ditemukan, lemparkan error dengan status 404
+      console.log(`Song not found: ${songId}`); // Debug log jika lagu tidak ditemukan
       throw new NotFoundError('Song not found');
     }
 
     const id = `ps-${nanoid(16)}`;
+    console.log(`Inserting into playlist_songs with ID: ${id}`);
     await pool.query('INSERT INTO playlist_songs (id,playlist_id,song_id) VALUES ($1,$2,$3)', [
       id,
       playlistId,
       songId,
     ]);
+    console.log('Inserted into playlist_songs successfully');
+
+    console.log(`Inserting into playlist_activities with ID: act-${nanoid(16)}`);
     await pool.query(
       'INSERT INTO playlist_activities (id,playlist_id,song_id,user_id,action) VALUES ($1,$2,$3,$4,$5)',
       [`act-${nanoid(16)}`, playlistId, songId, userId, 'add']
     );
+    console.log('Inserted into playlist_activities successfully');
   }
 
   async getSongs(playlistId, userId) {
@@ -133,4 +135,5 @@ class PlaylistsService {
     return rows;
   }
 }
+
 module.exports = PlaylistsService;
