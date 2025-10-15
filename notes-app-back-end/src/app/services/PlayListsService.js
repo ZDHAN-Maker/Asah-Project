@@ -46,14 +46,22 @@ class PlaylistsService {
   }
 
   async verifyAccess(playlistId, userId) {
-    // Pastikan pengguna memiliki akses ke playlist ini
-    const accessCheck = await pool.query('SELECT 1 FROM playlists WHERE id = $1 AND user_id = $2', [
+    // Memeriksa apakah pengguna adalah pemilik playlist
+    const { rowCount } = await pool.query('SELECT 1 FROM playlists WHERE id=$1 AND owner=$2', [
       playlistId,
       userId,
     ]);
-    if (accessCheck.rowCount === 0) {
-      throw new Error('Forbidden'); // pastikan tidak dilemparkan error dengan status 403
-    }
+    if (rowCount) return true;
+
+    // Memeriksa apakah pengguna adalah kolaborator
+    const collab = await pool.query(
+      'SELECT 1 FROM collaborations WHERE playlist_id=$1 AND user_id=$2',
+      [playlistId, userId]
+    );
+    if (collab.rowCount) return true;
+
+    // Jika tidak memiliki akses, lemparkan error 403
+    throw new ClientError('Anda tidak berhak mengakses resource ini', 403);
   }
 
   async delete(playlistId, userId) {
@@ -66,12 +74,13 @@ class PlaylistsService {
   }
 
   async addSong(playlistId, songId, userId) {
+    // Memeriksa hak akses terlebih dahulu
     await this.verifyAccess(playlistId, userId);
 
     // Cek apakah songId valid di database
     const songCheck = await pool.query('SELECT 1 FROM songs WHERE id = $1', [songId]);
     if (songCheck.rowCount === 0) {
-      // Lemparkan error jika lagu tidak ditemukan
+      // Jika lagu tidak ditemukan, lemparkan error dengan status 404
       throw new NotFoundError('Song not found');
     }
 
