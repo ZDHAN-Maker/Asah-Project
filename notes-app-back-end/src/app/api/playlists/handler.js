@@ -65,25 +65,33 @@ class PlaylistsHandler {
     try {
       validateSongPayload(req.body);
       await this.playlistsService.addSong(req.params.id, req.body.songId, req.auth.userId);
-      return res
-        .status(201)
-        .json({ status: 'success', message: 'Lagu berhasil ditambahkan ke playlist' });
+
+      return res.status(201).json({
+        status: 'success',
+        message: 'Lagu berhasil ditambahkan ke playlist',
+      });
     } catch (e) {
       if (e instanceof ClientError) {
+        // Pastikan e.statusCode integer valid (400/403/404/409/422, dst.)
         return res.status(e.statusCode).json({ status: 'fail', message: e.message });
       }
+      console.error('Unexpected error in postSong handler:', e);
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
 
   async getSongs(req, res) {
     try {
-      const songs = await this.playlistsService.getSongs(req.params.id, req.auth.userId);
-      return res.status(200).json({ status: 'success', data: { songs } });
+      const playlist = await this.playlistsService.getSongs(req.params.id, req.auth.userId);
+      return res.status(200).json({
+        status: 'success',
+        data: { playlist },
+      });
     } catch (e) {
       if (e instanceof ClientError) {
         return res.status(e.statusCode).json({ status: 'fail', message: e.message });
       }
+      console.error('Unexpected error in getSongs handler:', e);
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }

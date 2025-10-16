@@ -46,16 +46,22 @@ class PlaylistsService {
   }
 
   async verifyAccess(playlistId, userId) {
+    console.log(`Verifying access for user ${userId} on playlist ${playlistId}`);
+
     const { rowCount } = await pool.query('SELECT 1 FROM playlists WHERE id=$1 AND owner=$2', [
       playlistId,
       userId,
     ]);
+    console.log('Check if user is the owner:', rowCount); // Log hasil pengecekan owner
+
     if (rowCount) return true;
 
     const collab = await pool.query(
       'SELECT 1 FROM collaborations WHERE playlist_id=$1 AND user_id=$2',
       [playlistId, userId]
     );
+    console.log('Check if user is a collaborator:', collab.rowCount); // Log hasil pengecekan kolaborator
+
     if (collab.rowCount) return true;
 
     throw new ClientError('Anda tidak berhak mengakses resource ini', 403);
@@ -71,53 +77,77 @@ class PlaylistsService {
 
   async addSong(playlistId, songId, userId) {
     try {
-      await this.verifyAccess(playlistId, userId); // Memeriksa hak akses
+      // 403 kalau user tidak punya akses
+      await this.verifyAccess(playlistId, userId);
 
-      // Mengecek apakah lagu ada di dalam database
-      console.log('songId received:', songId);
+      // 404 kalau lagu tidak ada
       const songCheck = await pool.query('SELECT id FROM songs WHERE id = $1', [songId]);
-      console.log('songCheck result:', songCheck); // Log hasil pengecekan lagu
-
       if (songCheck.rowCount === 0) {
-        console.log(`Song not found: ${songId}`); // Log jika lagu tidak ditemukan
-        throw new NotFoundError('Song not found');
+        throw new NotFoundError('Song not found'); // NotFoundError harus extends ClientError (statusCode 404)
       }
 
-      // Membuat ID untuk entri baru di playlist_songs
+      // Insert ke playlist_songs
       const id = `ps-${nanoid(16)}`;
-      console.log(`Inserting into playlist_songs with ID: ${id}`);
-
-      // Memasukkan lagu ke dalam playlist_songs
-      const result = await pool.query(
-        'INSERT INTO playlist_songs (id,playlist_id,song_id) VALUES ($1,$2,$3)',
+      await pool.query(
+        'INSERT INTO playlist_songs (id, playlist_id, song_id) VALUES ($1, $2, $3)',
         [id, playlistId, songId]
       );
-      console.log('Inserted into playlist_songs successfully', result); // Log hasil query
 
-      // Memasukkan aktivitas ke dalam playlist_activities
+      // Catat aktivitas
       const activityId = `act-${nanoid(16)}`;
-      console.log(`Inserting into playlist_activities with ID: ${activityId}`);
-      const activityResult = await pool.query(
-        'INSERT INTO playlist_activities (id,playlist_id,song_id,user_id,action) VALUES ($1,$2,$3,$4,$5)',
+      await pool.query(
+        'INSERT INTO playlist_activities (id, playlist_id, song_id, user_id, action) VALUES ($1, $2, $3, $4, $5)',
         [activityId, playlistId, songId, userId, 'add']
       );
-      console.log('Inserted into playlist_activities successfully', activityResult); // Log hasil query
+
+      return id; // opsional, tapi bagus untuk konfirmasi
     } catch (error) {
-      console.error('Error adding song:', error); // Log error jika terjadi
-      throw new ClientError(500, 'Database error occurred while adding song to playlist');
+      if (error instanceof ClientError) {
+        throw error; // biarkan 400/403/404 tetap 400/403/404
+      }
+      console.error('Error adding song:', error);
+      throw new ClientError('Database error occurred while adding song to playlist', 500);
     }
   }
 
   async getSongs(playlistId, userId) {
-    await this.verifyAccess(playlistId, userId);
-    const q = `
+    try {
+      await this.verifyAccess(playlistId, userId); // akan lempar 403 kalau tak berhak
+
+      // metadata playlist + owner username
+      const metaQ = `
+      SELECT p.id, p.name, u.username
+      FROM playlists p
+      JOIN users u ON u.id = p.owner
+      WHERE p.id = $1
+    `;
+      const metaRes = await pool.query(metaQ, [playlistId]);
+      if (metaRes.rowCount === 0) {
+        throw new NotFoundError('Playlist not found');
+      }
+
+      // daftar lagu
+      const songsQ = `
       SELECT s.id, s.title, s.performer
       FROM playlist_songs ps
-      JOIN songs s ON s.id=ps.song_id
-      WHERE ps.playlist_id=$1
-      ORDER BY s.title`;
-    const { rows } = await pool.query(q, [playlistId]);
-    return rows;
+      JOIN songs s ON s.id = ps.song_id
+      WHERE ps.playlist_id = $1
+      ORDER BY s.title
+    `;
+      const songsRes = await pool.query(songsQ, [playlistId]);
+
+      // kembalikan shape yang diharapkan tester
+      return {
+        id: metaRes.rows[0].id,
+        name: metaRes.rows[0].name,
+        username: metaRes.rows[0].username,
+        songs: songsRes.rows,
+      };
+    } catch (error) {
+      if (error instanceof ClientError) throw error; // biarkan 400/403/404 lewat
+      console.error('Error getSongs:', error);
+      throw new ClientError('Database error occurred while fetching playlist songs', 500);
+    }
   }
 
   async deleteSong(playlistId, songId, userId) {
