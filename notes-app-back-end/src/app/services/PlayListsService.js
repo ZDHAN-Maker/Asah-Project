@@ -2,7 +2,7 @@ const { nanoid } = require('nanoid');
 const pool = require('../db/index');
 const NotFoundError = require('../utils/error/NotFoundError');
 const ClientError = require('../utils/error/ClientError');
-
+const AuthorizationError = require('../utils/error/AuthorizationError');
 class PlaylistsService {
   async create({ name, owner }) {
     if (!name || !owner) {
@@ -45,6 +45,18 @@ class PlaylistsService {
     return rows;
   }
 
+  async verifyOwner(playlistId, userId) {
+    const { rows, rowCount } = await pool.query('SELECT owner FROM playlists WHERE id = $1', [
+      playlistId,
+    ]);
+    if (rowCount === 0) {
+      throw new NotFoundError('Playlist tidak ditemukan');
+    }
+    if (rows[0].owner !== userId) {
+      throw new AuthorizationError('Anda tidak berhak menghapus playlist ini');
+    }
+  }
+
   async verifyAccess(playlistId, userId) {
     console.log(`Verifying access for user ${userId} on playlist ${playlistId}`);
 
@@ -75,17 +87,6 @@ class PlaylistsService {
     if (!rowCount) throw new NotFoundError('Playlist tidak ditemukan');
   }
 
-  async verifyOwner(playlistId, userId) {
-    const { rows, rowCount } = await pool.query('SELECT owner FROM playlists WHERE id = $1', [
-      playlistId,
-    ]);
-    if (rowCount === 0) {
-      throw new NotFoundError('Playlist tidak ditemukan'); // 404 kalau memang tidak ada
-    }
-    if (rows[0].owner !== userId) {
-      throw new AuthorizationError('Anda tidak berhak menghapus playlist ini'); // 403 kalau ada tapi bukan milik user
-    }
-  }
   async addSong(playlistId, songId, userId) {
     try {
       // 403 kalau user tidak punya akses
@@ -185,6 +186,30 @@ class PlaylistsService {
       if (err instanceof ClientError) throw err;
       console.error('Error deleteSong:', err);
       throw new ClientError('Database error occurred while deleting song from playlist', 500);
+    }
+  }
+
+  async deletePlaylist(playlistId, userId) {
+    try {
+      // Periksa dulu apakah playlist ada dan siapa pemiliknya
+      const check = await pool.query('SELECT owner FROM playlists WHERE id = $1', [playlistId]);
+
+      if (check.rowCount === 0) {
+        throw new NotFoundError('Playlist tidak ditemukan'); // 404 jika tidak ada
+      }
+
+      // Jika bukan pemilik, lempar error 403
+      const { owner } = check.rows[0];
+      if (owner !== userId) {
+        throw new AuthorizationError('Anda tidak berhak menghapus playlist ini');
+      }
+
+      // Hapus playlist
+      await pool.query('DELETE FROM playlists WHERE id = $1', [playlistId]);
+    } catch (err) {
+      if (err instanceof ClientError) throw err;
+      console.error('Error deletePlaylist:', err);
+      throw new ClientError('Database error occurred while deleting playlist', 500);
     }
   }
 

@@ -100,13 +100,14 @@ class PlaylistsHandler {
     try {
       const raw = req.body ?? {};
       const songId = (raw.songId ?? req.query.songId ?? req.params.songId ?? '').toString().trim();
+
       if (!songId) {
+        // pakai ClientError turunan, mis. InvariantError(400)
         return res.status(400).json({ status: 'fail', message: 'songId is required' });
       }
 
       await this.playlistsService.deleteSong(req.params.id, songId, req.auth.userId);
 
-      // Selalu 200 (idempotent), baik ada yang terhapus maupun tidak
       return res
         .status(200)
         .json({ status: 'success', message: 'Lagu berhasil dihapus dari playlist' });
