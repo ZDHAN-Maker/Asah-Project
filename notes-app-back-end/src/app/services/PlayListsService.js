@@ -189,26 +189,30 @@ class PlaylistsService {
     }
   }
 
+  // PlaylistsService.js
   async deletePlaylist(playlistId, userId) {
     try {
-      // Periksa dulu apakah playlist ada dan siapa pemiliknya
+      // 1) Cek eksistensi playlist (tanpa filter owner)
       const check = await pool.query('SELECT owner FROM playlists WHERE id = $1', [playlistId]);
 
       if (check.rowCount === 0) {
-        throw new NotFoundError('Playlist tidak ditemukan'); // 404 jika tidak ada
+        throw new NotFoundError('Playlist tidak ditemukan'); // 404 kalau memang tidak ada
       }
 
-      // Jika bukan pemilik, lempar error 403
-      const { owner } = check.rows[0];
-      if (owner !== userId) {
-        throw new AuthorizationError('Anda tidak berhak menghapus playlist ini');
+      // 2) Cek kepemilikan (owner only)
+      if (check.rows[0].owner !== userId) {
+        throw new AuthorizationError('Anda tidak berhak menghapus playlist ini'); // 403
       }
 
-      // Hapus playlist
+      // 3) Hapus playlist (tanpa filter owner, karena sudah diverifikasi)
       await pool.query('DELETE FROM playlists WHERE id = $1', [playlistId]);
+
+      // Jika FK tidak ON DELETE CASCADE, bersihkan relasi secara manual (opsional):
+      // await pool.query('DELETE FROM playlist_songs WHERE playlist_id = $1', [playlistId]);
+      // await pool.query('DELETE FROM playlist_activities WHERE playlist_id = $1', [playlistId]);
     } catch (err) {
       if (err instanceof ClientError) throw err;
-      console.error('Error deletePlaylist:', err);
+      console.error('Error delete (playlist):', err);
       throw new ClientError('Database error occurred while deleting playlist', 500);
     }
   }

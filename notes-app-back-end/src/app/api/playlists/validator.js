@@ -8,10 +8,10 @@ exports.validateCreate = (payload) => {
       'string.empty': 'Name cannot be empty',
       'string.min': 'Name must have at least 3 characters',
       'any.required': 'Name is required',
-    })
+    }),
   }).validate(payload);
 
-  if (error) throw new InvariantError(error.message); // Menangani validasi error
+  if (error) throw new InvariantError(error.message);
 };
 
 exports.validateSongPayload = (payload) => {
@@ -20,8 +20,10 @@ exports.validateSongPayload = (payload) => {
       'string.base': 'Song ID must be a string',
       'string.empty': 'Song ID cannot be empty',
       'any.required': 'Song ID is required',
-    })
+    }),
   }).validate(payload);
 
-  if (error) throw new InvariantError(error.message); // Menangani validasi error
+  if (error) {
+    throw new InvariantError(error.details[0].message, 400);
+  }
 };

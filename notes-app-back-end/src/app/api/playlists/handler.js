@@ -101,13 +101,24 @@ class PlaylistsHandler {
       const raw = req.body ?? {};
       const songId = (raw.songId ?? req.query.songId ?? req.params.songId ?? '').toString().trim();
 
+      // Cek jika songId kosong
       if (!songId) {
-        // pakai ClientError turunan, mis. InvariantError(400)
         return res.status(400).json({ status: 'fail', message: 'songId is required' });
       }
 
-      await this.playlistsService.deleteSong(req.params.id, songId, req.auth.userId);
+      // Log untuk memeriksa apakah songId yang diterima benar
+      console.log('Received songId:', songId);
 
+      // Menangani penghapusan lagu dari playlist
+      const result = await this.playlistsService.deleteSong(req.params.id, songId, req.auth.userId);
+
+      // Jika lagu tidak ditemukan atau penghapusan gagal
+      if (!result) {
+        console.log('Song not found in playlist for songId:', songId);
+        return res.status(404).json({ status: 'fail', message: 'Song not found in playlist' });
+      }
+
+      // Jika penghapusan berhasil
       return res
         .status(200)
         .json({ status: 'success', message: 'Lagu berhasil dihapus dari playlist' });
