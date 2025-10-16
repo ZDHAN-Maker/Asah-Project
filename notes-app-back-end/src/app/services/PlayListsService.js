@@ -128,12 +128,13 @@ class PlaylistsService {
 
       // daftar lagu
       const songsQ = `
-      SELECT s.id, s.title, s.performer
-      FROM playlist_songs ps
-      JOIN songs s ON s.id = ps.song_id
-      WHERE ps.playlist_id = $1
-      ORDER BY s.title
-    `;
+  SELECT s.id, s.title, s.performer
+  FROM playlist_songs ps
+  JOIN songs s ON s.id = ps.song_id
+  WHERE ps.playlist_id = $1
+  GROUP BY s.id, s.title, s.performer
+  ORDER BY s.title
+`;
       const songsRes = await pool.query(songsQ, [playlistId]);
 
       // kembalikan shape yang diharapkan tester
@@ -144,7 +145,7 @@ class PlaylistsService {
         songs: songsRes.rows,
       };
     } catch (error) {
-      if (error instanceof ClientError) throw error; // biarkan 400/403/404 lewat
+      if (error instanceof ClientError) throw error;
       console.error('Error getSongs:', error);
       throw new ClientError('Database error occurred while fetching playlist songs', 500);
     }
