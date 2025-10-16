@@ -98,8 +98,15 @@ class PlaylistsHandler {
 
   async deleteSong(req, res) {
     try {
-      validateSongPayload(req.body);
-      await this.playlistsService.deleteSong(req.params.id, req.body.songId, req.auth.userId);
+      const raw = req.body ?? {};
+      const songId = (raw.songId ?? req.query.songId ?? req.params.songId ?? '').toString().trim();
+      if (!songId) {
+        return res.status(400).json({ status: 'fail', message: 'songId is required' });
+      }
+
+      await this.playlistsService.deleteSong(req.params.id, songId, req.auth.userId);
+
+      // Selalu 200 (idempotent), baik ada yang terhapus maupun tidak
       return res
         .status(200)
         .json({ status: 'success', message: 'Lagu berhasil dihapus dari playlist' });
@@ -107,6 +114,7 @@ class PlaylistsHandler {
       if (e instanceof ClientError) {
         return res.status(e.statusCode).json({ status: 'fail', message: e.message });
       }
+      console.error('Unexpected error in deleteSong handler:', e);
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }

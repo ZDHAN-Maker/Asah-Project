@@ -75,6 +75,17 @@ class PlaylistsService {
     if (!rowCount) throw new NotFoundError('Playlist tidak ditemukan');
   }
 
+  async verifyOwner(playlistId, userId) {
+    const { rows, rowCount } = await pool.query('SELECT owner FROM playlists WHERE id = $1', [
+      playlistId,
+    ]);
+    if (rowCount === 0) {
+      throw new NotFoundError('Playlist tidak ditemukan'); // 404 kalau memang tidak ada
+    }
+    if (rows[0].owner !== userId) {
+      throw new AuthorizationError('Anda tidak berhak menghapus playlist ini'); // 403 kalau ada tapi bukan milik user
+    }
+  }
   async addSong(playlistId, songId, userId) {
     try {
       // 403 kalau user tidak punya akses
@@ -152,16 +163,29 @@ class PlaylistsService {
   }
 
   async deleteSong(playlistId, songId, userId) {
-    await this.verifyAccess(playlistId, userId);
-    const { rowCount } = await pool.query(
-      'DELETE FROM playlist_songs WHERE playlist_id=$1 AND song_id=$2',
-      [playlistId, songId]
-    );
-    if (!rowCount) throw new NotFoundError('Lagu tidak ada di playlist');
-    await pool.query(
-      'INSERT INTO playlist_activities (id,playlist_id,song_id,user_id,action) VALUES ($1,$2,$3,$4,$5)',
-      [`act-${nanoid(16)}`, playlistId, songId, userId, 'delete']
-    );
+    try {
+      await this.verifyAccess(playlistId, userId);
+
+      const delRes = await pool.query(
+        `DELETE FROM playlist_songs
+       WHERE playlist_id = $1 AND song_id = $2
+       RETURNING id`,
+        [playlistId, songId]
+      );
+
+      if (delRes.rowCount === 0) {
+        return;
+      }
+
+      await pool.query(
+        'INSERT INTO playlist_activities (id, playlist_id, song_id, user_id, action) VALUES ($1, $2, $3, $4, $5)',
+        [`act-${nanoid(16)}`, playlistId, songId, userId, 'delete']
+      );
+    } catch (err) {
+      if (err instanceof ClientError) throw err;
+      console.error('Error deleteSong:', err);
+      throw new ClientError('Database error occurred while deleting song from playlist', 500);
+    }
   }
 
   async getActivities(playlistId, userId) {
