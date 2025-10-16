@@ -4,6 +4,6 @@ class AuthorizationError extends ClientError {
     super(message, 403);
     this.name = 'AuthorizationError';
   }
-};
+}
 
 module.exports = AuthorizationError;
