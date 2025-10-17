@@ -72,7 +72,6 @@ class CollaborationsService {
     `;
       const deleteResult = await db.query(deleteQuery, [playlistId, userId]);
 
-      // Tangani jika tidak ada baris yang dihapus (misalnya jika kolaborator sudah dihapus sebelumnya)
       if (deleteResult.rowCount === 0) {
         throw new ClientError('Failed to delete collaborator', 500); // Perbarui penanganan kesalahan untuk kegagalan
       }
