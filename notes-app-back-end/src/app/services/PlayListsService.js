@@ -27,7 +27,6 @@ class PlaylistsService {
     }
   }
 
-  // 🟩 Mengambil semua playlist milik user (termasuk kolaborasi)
   async getForUser(userId) {
     const q = `
       SELECT p.id, p.name, u.username
@@ -46,7 +45,6 @@ class PlaylistsService {
     return rows;
   }
 
-  // 🟩 Verifikasi bahwa user adalah pemilik playlist
   async verifyOwner(playlistId, userId) {
     const { rows, rowCount } = await pool.query('SELECT owner FROM playlists WHERE id = $1', [
       playlistId,
@@ -61,7 +59,6 @@ class PlaylistsService {
     }
   }
 
-  // 🟩 Alias untuk kompatibilitas dengan service lain (CollaborationsService)
   async verifyPlaylistOwner(playlistId, userId) {
     const result = await pool.query('SELECT owner FROM playlists WHERE id = $1', [playlistId]);
 
@@ -75,16 +72,13 @@ class PlaylistsService {
     }
   }
 
-  // 🟩 Verifikasi akses (pemilik atau kolaborator)
   async verifyAccess(playlistId, userId) {
-    // Cek apakah pemilik
     const ownerRes = await pool.query('SELECT 1 FROM playlists WHERE id = $1 AND owner = $2', [
       playlistId,
       userId,
     ]);
     if (ownerRes.rowCount > 0) return true;
 
-    // Cek apakah kolaborator
     const collabRes = await pool.query(
       'SELECT 1 FROM collaborations WHERE playlist_id = $1 AND user_id = $2',
       [playlistId, userId]
@@ -94,7 +88,6 @@ class PlaylistsService {
     throw new AuthorizationError('Anda tidak berhak mengakses resource ini');
   }
 
-  // 🟩 Menghapus playlist
   async delete(playlistId, userId) {
     await this.verifyOwner(playlistId, userId);
 
@@ -110,7 +103,6 @@ class PlaylistsService {
     }
   }
 
-  // 🟩 Menambahkan lagu ke playlist
   async addSong(playlistId, songId, userId) {
     await this.verifyAccess(playlistId, userId);
 
@@ -135,7 +127,6 @@ class PlaylistsService {
     return id;
   }
 
-  // 🟩 Mengambil daftar lagu dalam playlist
   async getSongs(playlistId, userId) {
     const metaQ = `
       SELECT p.id, p.name, u.username
@@ -174,7 +165,6 @@ class PlaylistsService {
     };
   }
 
-  // 🟩 Menghapus lagu dari playlist
   async deleteSong(playlistId, songId, userId) {
     await this.verifyAccess(playlistId, userId);
 
@@ -195,7 +185,6 @@ class PlaylistsService {
     return { status: 'success', message: 'Lagu berhasil dihapus dari playlist' };
   }
 
-  // 🟩 Mengambil aktivitas playlist
   async getActivities(playlistId, userId) {
     const playlistCheck = await pool.query('SELECT id FROM playlists WHERE id = $1', [playlistId]);
     if (playlistCheck.rowCount === 0) throw new NotFoundError('Playlist tidak ditemukan');

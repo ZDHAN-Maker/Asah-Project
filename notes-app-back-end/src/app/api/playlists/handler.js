@@ -18,7 +18,6 @@ class PlaylistsHandler {
         owner: req.auth.userId,
       });
 
-      // Jika berhasil, kembalikan response status 201
       return res.status(201).json({
         status: 'success',
         data: { playlistId: id },
@@ -32,7 +31,7 @@ class PlaylistsHandler {
         return res.status(e.statusCode).json({ status: 'fail', message: e.message });
       }
 
-      console.error(e); // Log error untuk debugging lebih lanjut
+      console.error(e);
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
@@ -72,7 +71,6 @@ class PlaylistsHandler {
       });
     } catch (e) {
       if (e instanceof ClientError) {
-        // Pastikan e.statusCode integer valid (400/403/404/409/422, dst.)
         return res.status(e.statusCode).json({ status: 'fail', message: e.message });
       }
       console.error('Unexpected error in postSong handler:', e);
@@ -84,10 +82,9 @@ class PlaylistsHandler {
     try {
       const result = await this.playlistsService.getSongs(req.params.id, req.auth.userId);
 
-      // Ambil hanya data playlist-nya
       return res.status(200).json({
         status: 'success',
-        data: result.data, // 🟩 ambil langsung data dari service
+        data: result.data,
       });
     } catch (e) {
       if (e instanceof ClientError) {
@@ -103,24 +100,19 @@ class PlaylistsHandler {
       const raw = req.body ?? {};
       const songId = (raw.songId ?? req.query.songId ?? req.params.songId ?? '').toString().trim();
 
-      // Cek jika songId kosong
       if (!songId) {
         return res.status(400).json({ status: 'fail', message: 'songId is required' });
       }
 
-      // Log untuk memeriksa apakah songId yang diterima benar
       console.log('Received songId:', songId);
 
-      // Menangani penghapusan lagu dari playlist
       const result = await this.playlistsService.deleteSong(req.params.id, songId, req.auth.userId);
 
-      // Jika lagu tidak ditemukan atau penghapusan gagal
       if (!result) {
         console.log('Song not found in playlist for songId:', songId);
         return res.status(404).json({ status: 'fail', message: 'Song not found in playlist' });
       }
 
-      // Jika penghapusan berhasil
       return res
         .status(200)
         .json({ status: 'success', message: 'Lagu berhasil dihapus dari playlist' });
