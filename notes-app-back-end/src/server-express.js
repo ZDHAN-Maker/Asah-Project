@@ -26,7 +26,7 @@ const createPlaylistsRouter = require('./app/api/playlists/routes');
 // Collaborations
 const CollaborationsService = require('./app/services/collaborationsService');
 const validateCollaborator = require('./app/api/collaborations/validator');
-const CollaboratorHandler = require('./app/handlers/CollaboratorHandler'); // Path yang benar
+const CollaboratorHandler = require('./app/api/collaborations/handler');
 const createCollaboratorRoute = require('./app/api/collaborations/routes');
 
 // Inisialisasi express
