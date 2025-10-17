@@ -244,6 +244,48 @@ class PlaylistsService {
       throw new ClientError('Database error occurred while deleting song from playlist', 500);
     }
   }
+
+  async getActivities(playlistId, userId) {
+    try {
+      const playlistCheck = await pool.query('SELECT id, owner FROM playlists WHERE id = $1', [
+        playlistId,
+      ]);
+
+      if (playlistCheck.rowCount === 0) {
+        throw new NotFoundError('Playlist tidak ditemukan');
+      }
+
+      await this.verifyAccess(playlistId, userId);
+
+      const q = `
+      SELECT 
+        u.username, 
+        s.title, 
+        pa.action, 
+        pa.time
+      FROM playlist_activities pa
+      JOIN users u ON u.id = pa.user_id
+      JOIN songs s ON s.id = pa.song_id
+      WHERE pa.playlist_id = $1
+      ORDER BY pa.time ASC
+    `;
+      const { rows } = await pool.query(q, [playlistId]);
+
+      return {
+        playlistId,
+        activities: rows.map((r) => ({
+          username: r.username,
+          title: r.title,
+          action: r.action,
+          time: r.time,
+        })),
+      };
+    } catch (error) {
+      if (error instanceof ClientError) throw error;
+      console.error('Error getActivities:', error);
+      throw new ClientError('Database error occurred while fetching playlist activities', 500);
+    }
+  }
 }
 
 module.exports = PlaylistsService;
