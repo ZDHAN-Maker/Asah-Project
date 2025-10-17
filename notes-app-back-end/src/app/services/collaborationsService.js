@@ -1,53 +1,78 @@
 const db = require('../db/index');
 const ClientError = require('../utils/error/ClientError');
 
-class CollaboratorService {
+class CollaborationsService {
   async addCollaborator(playlistId, userId) {
+    // Pastikan playlist ada
     const playlistQuery = 'SELECT * FROM playlists WHERE id = $1';
     const playlistResult = await db.query(playlistQuery, [playlistId]);
     if (playlistResult.rows.length === 0) {
       throw new ClientError('Playlist not found', 404);
     }
 
-    const collaboratorQuery = 'SELECT * FROM collaborators WHERE playlist_id = $1 AND user_id = $2';
-    const collaboratorResult = await db.query(collaboratorQuery, [playlistId, userId]);
-    if (collaboratorResult.rows.length > 0) {
+    // Pastikan user ada
+    const userQuery = 'SELECT * FROM users WHERE id = $1';
+    const userResult = await db.query(userQuery, [userId]);
+    if (userResult.rows.length === 0) {
+      throw new ClientError('User not found', 404);
+    }
+
+    // Cek apakah kolaborator sudah ada
+    const checkQuery = `
+      SELECT * FROM collaborations 
+      WHERE playlist_id = $1 AND user_id = $2
+    `;
+    const checkResult = await db.query(checkQuery, [playlistId, userId]);
+    if (checkResult.rows.length > 0) {
       throw new ClientError('User is already a collaborator', 400);
     }
 
-    const insertQuery = `
-      INSERT INTO collaborators (playlist_id, user_id, collaboration_id, date_added)
-      VALUES ($1, $2, $3, $4) RETURNING collaboration_id
-    `;
+    // Insert kolaborator baru
     const collaborationId = `collab_${Math.random().toString(36).substr(2, 9)}`;
-    const insertResult = await db.query(insertQuery, [
-      playlistId,
-      userId,
-      collaborationId,
-      new Date(),
-    ]);
+    const insertQuery = `
+      INSERT INTO collaborations (id, playlist_id, user_id)
+      VALUES ($1, $2, $3)
+      RETURNING id
+    `;
+    const insertResult = await db.query(insertQuery, [collaborationId, playlistId, userId]);
 
-    return insertResult.rows[0].collaboration_id;
+    return insertResult.rows[0].id;
   }
 
   async removeCollaborator(playlistId, userId) {
+    // Pastikan playlist ada
     const playlistQuery = 'SELECT * FROM playlists WHERE id = $1';
     const playlistResult = await db.query(playlistQuery, [playlistId]);
     if (playlistResult.rows.length === 0) {
       throw new ClientError('Playlist not found', 404);
     }
 
-    const collaboratorQuery = 'SELECT * FROM collaborators WHERE playlist_id = $1 AND user_id = $2';
-    const collaboratorResult = await db.query(collaboratorQuery, [playlistId, userId]);
-    if (collaboratorResult.rows.length === 0) {
+    // Pastikan user ada
+    const userQuery = 'SELECT * FROM users WHERE id = $1';
+    const userResult = await db.query(userQuery, [userId]);
+    if (userResult.rows.length === 0) {
+      throw new ClientError('User not found', 404);
+    }
+
+    // Cek apakah kolaborator ada
+    const checkQuery = `
+      SELECT * FROM collaborations 
+      WHERE playlist_id = $1 AND user_id = $2
+    `;
+    const checkResult = await db.query(checkQuery, [playlistId, userId]);
+    if (checkResult.rows.length === 0) {
       throw new ClientError('User is not a collaborator', 400);
     }
 
-    const deleteQuery = 'DELETE FROM collaborators WHERE playlist_id = $1 AND user_id = $2';
+    // Hapus kolaborator
+    const deleteQuery = `
+      DELETE FROM collaborations 
+      WHERE playlist_id = $1 AND user_id = $2
+    `;
     await db.query(deleteQuery, [playlistId, userId]);
 
     return true;
   }
 }
 
-module.exports = CollaboratorService;
+module.exports = CollaborationsService;

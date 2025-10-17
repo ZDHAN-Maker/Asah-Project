@@ -1,16 +1,16 @@
 const Joi = require('joi');
 const InvariantError = require('../../utils/error/InvariantError');
 
-const CollaboratorSchema = Joi.object({
+const collaboratorSchema = Joi.object({
   playlistId: Joi.string().required(),
   userId: Joi.string().required(),
 });
 
-function validatorCollaborator(payload) {
-  const { error } = CollaboratorSchema.validate(payload, { abortEarly: false });
+function validateCollaborator(payload) {
+  const { error } = collaboratorSchema.validate(payload, { abortEarly: false });
   if (error) {
     throw new InvariantError(error.message);
   }
 }
 
-module.exports = { validatorCollaborator };
+module.exports = validateCollaborator;

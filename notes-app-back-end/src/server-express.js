@@ -23,9 +23,9 @@ const playlistsValidator = require('./app/api/playlists/validator');
 const PlaylistsHandler = require('./app/api/playlists/handler');
 const createPlaylistsRouter = require('./app/api/playlists/routes');
 
-// Collaboration
+// Collaborations
 const CollaborationsService = require('./app/services/CollaborationsService');
-const { validatorCollaborator } = require('./app/api/collaborations/validator');
+const validateCollaborator = require('./app/api/collaborations/validator');
 const CollaborationsHandler = require('./app/api/collaborations/handler');
 const createCollaboratorRoute = require('./app/api/collaborations/routes');
 
@@ -40,17 +40,16 @@ const playlistsService = new PlaylistsService();
 const collaborationsService = new CollaborationsService(playlistsService);
 
 // Inisialisasi handler
-const collaborationsHandler = new CollaborationsHandler(
-  collaborationsService,
-  playlistsService,
-  validatorCollaborator
-);
 const albumsHandler = new AlbumsHandler(albumsService, albumValidator, songsService);
 const songsHandler = new SongsHandler(songsService, songValidator);
 const playlistsHandler = new PlaylistsHandler(playlistsService, playlistsValidator);
+const collaborationsHandler = new CollaborationsHandler(
+  collaborationsService,
+  validateCollaborator
+);
 const usersHandler = new UsersHandler();
 
-// Inisialisasi router dan hubungkan dengan handler yang sesuai
+// Inisialisasi router dan hubungkan dengan handler
 const albumsRouter = createAlbumsRouter(albumsHandler);
 const songsRouter = createSongsRouter(songsHandler);
 const usersRouter = createUsersRouter(usersHandler);
@@ -68,7 +67,7 @@ app.use('/collaborations', collaborationsRouter);
 // Jalankan server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server berjalan pada port ${PORT}`);
+  console.log(`✅ Server berjalan pada port ${PORT}`);
 });
 
 module.exports = app;

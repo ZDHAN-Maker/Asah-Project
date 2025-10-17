@@ -10,7 +10,11 @@ class CollaboratorHandler {
 
   async postCollaboratorHandler(req, res) {
     try {
-      this._validator(req.body);
+      if (this._validator) {
+        this._validator(req.body);
+      } else {
+        throw new Error('Validator is not defined');
+      }
 
       const { playlistId, userId } = req.body;
       const collaborationId = await this._service.addCollaborator(playlistId, userId);
@@ -37,7 +41,11 @@ class CollaboratorHandler {
 
   async deleteCollaboratorHandler(req, res) {
     try {
-      this._validator(req.body);
+      if (this._validator) {
+        this._validator(req.body);
+      } else {
+        throw new Error('Validator is not defined');
+      }
 
       const { playlistId, userId } = req.body;
       await this._service.removeCollaborator(playlistId, userId);
