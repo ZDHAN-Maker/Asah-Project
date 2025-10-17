@@ -82,10 +82,12 @@ class PlaylistsHandler {
 
   async getSongs(req, res) {
     try {
-      const playlist = await this.playlistsService.getSongs(req.params.id, req.auth.userId);
+      const result = await this.playlistsService.getSongs(req.params.id, req.auth.userId);
+
+      // Ambil hanya data playlist-nya
       return res.status(200).json({
         status: 'success',
-        data: { playlist },
+        data: result.data, // 🟩 ambil langsung data dari service
       });
     } catch (e) {
       if (e instanceof ClientError) {

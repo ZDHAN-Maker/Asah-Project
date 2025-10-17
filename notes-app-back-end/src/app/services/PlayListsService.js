@@ -191,9 +191,9 @@ class PlaylistsService {
         status: 'success',
         data: {
           playlist: {
-            id: String(metaRes.rows[0].id), // pastikan string
-            name: String(metaRes.rows[0].name), // pastikan string
-            username: String(metaRes.rows[0].username), // pastikan string
+            id: String(metaRes.rows[0].id),
+            name: String(metaRes.rows[0].name),
+            username: String(metaRes.rows[0].username),
             songs: songsRes.rows.map((s) => ({
               id: String(s.id),
               title: String(s.title),
