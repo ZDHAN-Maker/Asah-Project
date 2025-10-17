@@ -25,7 +25,7 @@ const createPlaylistsRouter = require('./app/api/playlists/routes');
 
 // Collaboration
 const CollaborationsService = require('./app/services/CollaborationsService');
-const collaborationsValidator = require('./app/api/collaborations/validator');
+const { validatorCollaborator } = require('./app/api/collaborations/validator');
 const CollaborationsHandler = require('./app/api/collaborations/handler');
 const createCollaboratorRoute = require('./app/api/collaborations/routes');
 
@@ -43,7 +43,7 @@ const collaborationsService = new CollaborationsService(playlistsService);
 const collaborationsHandler = new CollaborationsHandler(
   collaborationsService,
   playlistsService,
-  collaborationsValidator
+  validatorCollaborator
 );
 const albumsHandler = new AlbumsHandler(albumsService, albumValidator, songsService);
 const songsHandler = new SongsHandler(songsService, songValidator);
@@ -60,8 +60,8 @@ const collaborationsRouter = createCollaboratorRoute(collaborationsHandler);
 // Gunakan router
 app.use('/albums', albumsRouter);
 app.use('/songs', songsRouter);
-app.use('/', usersRouter);
 app.use('/users', usersRouter);
+app.use('/', usersRouter);
 app.use('/', playlistsRouter);
 app.use('/collaborations', collaborationsRouter);
 

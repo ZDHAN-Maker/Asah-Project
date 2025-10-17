@@ -1,50 +1,52 @@
+const db = require('../db/index');
+const ClientError = require('../utils/error/ClientError');
+
 class CollaboratorService {
-  constructor(database) {
-    this._database = database;
-  }
-
   async addCollaborator(playlistId, userId) {
-    const playlistExists = await this._database.findPlaylistById(playlistId);
-    if (!playlistExists) {
-      throw new Error('Playlist not found');
+    const playlistQuery = 'SELECT * FROM playlists WHERE id = $1';
+    const playlistResult = await db.query(playlistQuery, [playlistId]);
+    if (playlistResult.rows.length === 0) {
+      throw new ClientError('Playlist not found', 404);
     }
 
-    const existingCollaborator = await this._database.findCollaborator(playlistId, userId);
-    if (existingCollaborator) {
-      throw new Error('User is already a collaborator');
+    const collaboratorQuery = 'SELECT * FROM collaborators WHERE playlist_id = $1 AND user_id = $2';
+    const collaboratorResult = await db.query(collaboratorQuery, [playlistId, userId]);
+    if (collaboratorResult.rows.length > 0) {
+      throw new ClientError('User is already a collaborator', 400);
     }
 
-    const collaborationId = this._generateCollaborationId();
-    const collaboration = {
+    const insertQuery = `
+      INSERT INTO collaborators (playlist_id, user_id, collaboration_id, date_added)
+      VALUES ($1, $2, $3, $4) RETURNING collaboration_id
+    `;
+    const collaborationId = `collab_${Math.random().toString(36).substr(2, 9)}`;
+    const insertResult = await db.query(insertQuery, [
       playlistId,
       userId,
       collaborationId,
-      dateAdded: new Date(),
-    };
+      new Date(),
+    ]);
 
-    await this._database.addCollaborator(collaboration);
-
-    return collaborationId;
+    return insertResult.rows[0].collaboration_id;
   }
 
   async removeCollaborator(playlistId, userId) {
-    const playlistExists = await this._database.findPlaylistById(playlistId);
-    if (!playlistExists) {
-      throw new Error('Playlist not found');
+    const playlistQuery = 'SELECT * FROM playlists WHERE id = $1';
+    const playlistResult = await db.query(playlistQuery, [playlistId]);
+    if (playlistResult.rows.length === 0) {
+      throw new ClientError('Playlist not found', 404);
     }
 
-    const existingCollaborator = await this._database.findCollaborator(playlistId, userId);
-    if (!existingCollaborator) {
-      throw new Error('User is not a collaborator');
+    const collaboratorQuery = 'SELECT * FROM collaborators WHERE playlist_id = $1 AND user_id = $2';
+    const collaboratorResult = await db.query(collaboratorQuery, [playlistId, userId]);
+    if (collaboratorResult.rows.length === 0) {
+      throw new ClientError('User is not a collaborator', 400);
     }
 
-    await this._database.removeCollaborator(playlistId, userId);
+    const deleteQuery = 'DELETE FROM collaborators WHERE playlist_id = $1 AND user_id = $2';
+    await db.query(deleteQuery, [playlistId, userId]);
 
     return true;
-  }
-
-  _generateCollaborationId() {
-    return `collab_${Math.random().toString(36).substr(2, 9)}`;
   }
 }
 

@@ -7,10 +7,10 @@ const CollaboratorSchema = Joi.object({
 });
 
 function validatorCollaborator(payload) {
-  const { error } = CollaboratorSchema.validate(payload, { abortearly: false });
+  const { error } = CollaboratorSchema.validate(payload, { abortEarly: false });
   if (error) {
     throw new InvariantError(error.message);
   }
 }
 
-module.exports = validatorCollaborator;
+module.exports = { validatorCollaborator };

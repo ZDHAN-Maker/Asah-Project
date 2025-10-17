@@ -1,5 +1,5 @@
 const ClientError = require('../../utils/error/ClientError');
-const PlaylistsService = require('../../services/PlayListsService'); // Mengimpor PlaylistsService
+const PlaylistsService = require('../../services/PlayListsService');
 const InvariantError = require('../../utils/error/InvariantError');
 const { validateCreate, validateSongPayload } = require('./validator');
 
@@ -11,7 +11,7 @@ class PlaylistsHandler {
   // POST /playlists
   async postPlaylist(req, res) {
     try {
-      validateCreate(req.body); // Validasi input yang dikirim
+      validateCreate(req.body);
 
       const id = await this.playlistsService.create({
         name: req.body.name,

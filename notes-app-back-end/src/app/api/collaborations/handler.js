@@ -35,13 +35,10 @@ class CollaboratorHandler {
     }
   }
 
-  // DELETE /collaborations
   async deleteCollaboratorHandler(req, res) {
     try {
-      // Validate request body
       this._validator(req.body);
 
-      // Call service to remove collaborator
       const { playlistId, userId } = req.body;
       await this._service.removeCollaborator(playlistId, userId);
 
