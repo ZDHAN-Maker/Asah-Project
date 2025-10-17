@@ -159,34 +159,48 @@ class PlaylistsService {
   // Mengambil daftar lagu dalam playlist
   async getSongs(playlistId, userId) {
     try {
-      await this.verifyAccess(playlistId, userId);
-
+      // 🔹 Cek playlist dulu
       const metaQ = `
-        SELECT p.id, p.name, u.username
-        FROM playlists p
-        JOIN users u ON u.id = p.owner
-        WHERE p.id = $1
-      `;
+      SELECT p.id, p.name, u.username, p.owner
+      FROM playlists p
+      JOIN users u ON u.id = p.owner
+      WHERE p.id = $1
+    `;
       const metaRes = await pool.query(metaQ, [playlistId]);
+
+      // Playlist tidak ditemukan → 404
       if (metaRes.rowCount === 0) {
         throw new NotFoundError('Playlist not found');
       }
 
+      // 🔹 Verifikasi akses (owner atau kolaborator)
+      await this.verifyAccess(playlistId, userId);
+
+      // 🔹 Ambil lagu-lagu (bisa kosong)
       const songsQ = `
-        SELECT s.id, s.title, s.performer
-        FROM playlist_songs ps
-        JOIN songs s ON s.id = ps.song_id
-        WHERE ps.playlist_id = $1
-        GROUP BY s.id, s.title, s.performer
-        ORDER BY s.title
-      `;
+      SELECT s.id, s.title, s.performer
+      FROM playlist_songs ps
+      JOIN songs s ON s.id = ps.song_id
+      WHERE ps.playlist_id = $1
+      ORDER BY s.title
+    `;
       const songsRes = await pool.query(songsQ, [playlistId]);
 
+      // ✅ Return dalam format yang diharapkan test
       return {
-        id: metaRes.rows[0].id,
-        name: metaRes.rows[0].name,
-        username: metaRes.rows[0].username,
-        songs: songsRes.rows,
+        status: 'success',
+        data: {
+          playlist: {
+            id: String(metaRes.rows[0].id), // pastikan string
+            name: String(metaRes.rows[0].name), // pastikan string
+            username: String(metaRes.rows[0].username), // pastikan string
+            songs: songsRes.rows.map((s) => ({
+              id: String(s.id),
+              title: String(s.title),
+              performer: String(s.performer),
+            })),
+          },
+        },
       };
     } catch (error) {
       if (error instanceof ClientError) throw error;
