@@ -24,9 +24,9 @@ const PlaylistsHandler = require('./app/api/playlists/handler');
 const createPlaylistsRouter = require('./app/api/playlists/routes');
 
 // Collaborations
-const CollaborationsService = require('./app/services/CollaborationsService');
+const CollaborationsService = require('./app/services/collaborationsService');
 const validateCollaborator = require('./app/api/collaborations/validator');
-const CollaborationsHandler = require('./app/api/collaborations/handler');
+const CollaboratorHandler = require('./app/handlers/CollaboratorHandler'); // Path yang benar
 const createCollaboratorRoute = require('./app/api/collaborations/routes');
 
 // Inisialisasi express
@@ -43,10 +43,7 @@ const collaborationsService = new CollaborationsService(playlistsService);
 const albumsHandler = new AlbumsHandler(albumsService, albumValidator, songsService);
 const songsHandler = new SongsHandler(songsService, songValidator);
 const playlistsHandler = new PlaylistsHandler(playlistsService, playlistsValidator);
-const collaborationsHandler = new CollaborationsHandler(
-  collaborationsService,
-  validateCollaborator
-);
+const collaboratorHandler = new CollaboratorHandler(collaborationsService, validateCollaborator);
 const usersHandler = new UsersHandler();
 
 // Inisialisasi router dan hubungkan dengan handler
@@ -54,7 +51,7 @@ const albumsRouter = createAlbumsRouter(albumsHandler);
 const songsRouter = createSongsRouter(songsHandler);
 const usersRouter = createUsersRouter(usersHandler);
 const playlistsRouter = createPlaylistsRouter(playlistsHandler);
-const collaborationsRouter = createCollaboratorRoute(collaborationsHandler);
+const collaborationsRouter = createCollaboratorRoute(collaboratorHandler);
 
 // Gunakan router
 app.use('/albums', albumsRouter);

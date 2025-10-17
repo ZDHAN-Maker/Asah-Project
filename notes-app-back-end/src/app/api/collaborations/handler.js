@@ -1,61 +1,70 @@
 const ClientError = require('../../utils/error/ClientError');
 
 class CollaboratorHandler {
-  constructor(service, validator) {
-    this._service = service;
+  constructor(collaborationsService, validator) {
+    this._collaborationsService = collaborationsService;
     this._validator = validator;
+
     this.postCollaboratorHandler = this.postCollaboratorHandler.bind(this);
     this.deleteCollaboratorHandler = this.deleteCollaboratorHandler.bind(this);
   }
 
   async postCollaboratorHandler(req, res) {
     try {
-      if (this._validator) {
-        this._validator(req.body);
-      } else {
-        throw new Error('Validator is not defined');
-      }
-
+      const requesterId = req.auth.userId;
       const { playlistId, userId } = req.body;
-      const collaborationId = await this._service.addCollaborator(playlistId, userId);
 
-      return res.status(201).json({
+      const collaborationId = await this._collaborationsService.addCollaborator(
+        playlistId,
+        userId,
+        requesterId
+      );
+
+      res.status(201).json({
         status: 'success',
+        message: 'Kolaborator berhasil ditambahkan',
         data: { collaborationId },
       });
     } catch (error) {
-      console.error('postCollaboratorHandler error:', error);
-      if (error instanceof ClientError) {
-        return res.status(error.statusCode).json({
-          status: 'fail',
-          message: error.message,
-        });
-      }
-
-      return res.status(500).json({
-        status: 'error',
-        message: 'Terjadi kesalahan pada server',
+      res.status(error.statusCode || 500).json({
+        status: 'fail',
+        message: error.message,
       });
     }
   }
 
   async deleteCollaboratorHandler(req, res) {
     try {
-      if (this._validator) {
-        this._validator(req.body);
-      } else {
-        throw new Error('Validator is not defined');
+      // Validasi input body jika diperlukan
+      this._validator(req.body);
+
+      // Mendapatkan data dari request body
+      const { playlistId, userId } = req.body;
+
+      // Mendapatkan requesterId dari req.auth atau req.user
+      const requesterId = req.auth.userId; // Sesuaikan dengan autentikasi yang digunakan
+
+      // Pastikan requesterId valid
+      if (!requesterId) {
+        return res.status(401).json({
+          status: 'fail',
+          message: 'User belum terautentikasi',
+        });
       }
 
-      const { playlistId, userId } = req.body;
-      await this._service.removeCollaborator(playlistId, userId);
+      // Panggil service untuk menghapus kolaborator
+      await this._collaborationsService.removeCollaborator(playlistId, userId, requesterId);
 
+      // Kirim respons sukses jika kolaborator berhasil dihapus
       return res.status(200).json({
         status: 'success',
         message: 'Kolaborator berhasil dihapus',
       });
     } catch (error) {
+      // Tangani error yang muncul
       console.error('deleteCollaboratorHandler error:', error);
+
+      // Jika error berupa ClientError, kirimkan status dan pesan sesuai error
       if (error instanceof ClientError) {
         return res.status(error.statusCode).json({
           status: 'fail',
@@ -63,6 +72,7 @@ class CollaboratorHandler {
         });
       }
 
+      // Jika error lain, kirimkan status 500
       return res.status(500).json({
         status: 'error',
         message: 'Terjadi kesalahan pada server',
