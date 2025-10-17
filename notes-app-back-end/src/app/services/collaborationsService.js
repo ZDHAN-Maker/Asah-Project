@@ -24,7 +24,7 @@ class CollaborationsService {
     `;
     const checkResult = await db.query(checkQuery, [playlistId, userId]);
     if (checkResult.rows.length > 0) {
-      throw new ClientError('User is already a collaborator', 400);
+      throw new ClientError('User is already a collaborator', 400); // Mengembalikan 400, bukan 403
     }
 
     // Insert kolaborator baru
@@ -40,38 +40,53 @@ class CollaborationsService {
   }
 
   async removeCollaborator(playlistId, userId) {
-    // Pastikan playlist ada
-    const playlistQuery = 'SELECT * FROM playlists WHERE id = $1';
-    const playlistResult = await db.query(playlistQuery, [playlistId]);
-    if (playlistResult.rows.length === 0) {
-      throw new ClientError('Playlist not found', 404);
-    }
+    try {
+      // Pastikan playlist ada
+      const playlistQuery = 'SELECT * FROM playlists WHERE id = $1';
+      const playlistResult = await db.query(playlistQuery, [playlistId]);
+      if (playlistResult.rows.length === 0) {
+        throw new ClientError('Playlist not found', 404);
+      }
 
-    // Pastikan user ada
-    const userQuery = 'SELECT * FROM users WHERE id = $1';
-    const userResult = await db.query(userQuery, [userId]);
-    if (userResult.rows.length === 0) {
-      throw new ClientError('User not found', 404);
-    }
+      // Pastikan user ada
+      const userQuery = 'SELECT * FROM users WHERE id = $1';
+      const userResult = await db.query(userQuery, [userId]);
+      if (userResult.rows.length === 0) {
+        throw new ClientError('User not found', 404);
+      }
 
-    // Cek apakah kolaborator ada
-    const checkQuery = `
+      // Cek apakah kolaborator ada
+      const checkQuery = `
       SELECT * FROM collaborations 
       WHERE playlist_id = $1 AND user_id = $2
     `;
-    const checkResult = await db.query(checkQuery, [playlistId, userId]);
-    if (checkResult.rows.length === 0) {
-      throw new ClientError('User is not a collaborator', 400);
-    }
+      const checkResult = await db.query(checkQuery, [playlistId, userId]);
+      if (checkResult.rows.length === 0) {
+        throw new ClientError('User is not a collaborator', 400); // Mengembalikan 400, bukan 403
+      }
 
-    // Hapus kolaborator
-    const deleteQuery = `
+      // Hapus kolaborator
+      const deleteQuery = `
       DELETE FROM collaborations 
       WHERE playlist_id = $1 AND user_id = $2
     `;
-    await db.query(deleteQuery, [playlistId, userId]);
+      const deleteResult = await db.query(deleteQuery, [playlistId, userId]);
 
-    return true;
+      // Tangani jika tidak ada baris yang dihapus (misalnya jika kolaborator sudah dihapus sebelumnya)
+      if (deleteResult.rowCount === 0) {
+        throw new ClientError('Failed to delete collaborator', 500); // Perbarui penanganan kesalahan untuk kegagalan
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error removing collaborator:', error);
+      if (error instanceof ClientError) {
+        throw error; // Lempar ulang kesalahan khusus untuk ditangani oleh controller
+      }
+
+      // Kembalikan kesalahan server umum untuk kesalahan yang tidak ditangani
+      throw new ClientError('Database error occurred while deleting playlist', 500); // Pastikan ini jelas
+    }
   }
 }
 
