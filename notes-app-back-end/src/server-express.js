@@ -23,6 +23,12 @@ const playlistsValidator = require('./app/api/playlists/validator');
 const PlaylistsHandler = require('./app/api/playlists/handler');
 const createPlaylistsRouter = require('./app/api/playlists/routes');
 
+// Collaboration
+const CollaborationsService = require('./app/services/CollaborationsService');
+const collaborationsValidator = require('./app/api/collaborations/validator');
+const CollaborationsHandler = require('./app/api/collaborations/handler');
+const createCollaboratorRoute = require('./app/api/collaborations/routes');
+
 // Inisialisasi express
 const app = express();
 app.use(express.json());
@@ -31,8 +37,14 @@ app.use(express.json());
 const albumsService = new AlbumsService();
 const songsService = new SongsService();
 const playlistsService = new PlaylistsService();
+const collaborationsService = new CollaborationsService(playlistsService);
 
 // Inisialisasi handler
+const collaborationsHandler = new CollaborationsHandler(
+  collaborationsService,
+  playlistsService,
+  collaborationsValidator
+);
 const albumsHandler = new AlbumsHandler(albumsService, albumValidator, songsService);
 const songsHandler = new SongsHandler(songsService, songValidator);
 const playlistsHandler = new PlaylistsHandler(playlistsService, playlistsValidator);
@@ -43,6 +55,7 @@ const albumsRouter = createAlbumsRouter(albumsHandler);
 const songsRouter = createSongsRouter(songsHandler);
 const usersRouter = createUsersRouter(usersHandler);
 const playlistsRouter = createPlaylistsRouter(playlistsHandler);
+const collaborationsRouter = createCollaboratorRoute(collaborationsHandler);
 
 // Gunakan router
 app.use('/albums', albumsRouter);
@@ -50,6 +63,7 @@ app.use('/songs', songsRouter);
 app.use('/', usersRouter);
 app.use('/users', usersRouter);
 app.use('/', playlistsRouter);
+app.use('/collaborations', collaborationsRouter);
 
 // Jalankan server
 const PORT = process.env.PORT || 5000;
