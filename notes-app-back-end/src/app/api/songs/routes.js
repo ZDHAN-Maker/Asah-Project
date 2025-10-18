@@ -1,5 +1,4 @@
 const express = require('express');
-const authMiddleware = require('../../middleware/authmiddleware');
 
 const createSongsRouter = (handler) => {
   const router = express.Router();

@@ -7,8 +7,13 @@ const ClientError = require('../../utils/error/ClientError');
 const refreshStore = new Set();
 
 class UsersHandler {
+  // REGISTER
   async postUserHandler(req, res) {
     try {
+      if (!req.body || typeof req.body !== 'object') {
+        return res.status(400).json({ status: 'fail', message: 'Invalid payload' });
+      }
+
       validateCreateUser(req.body);
       const { username, password, fullname } = req.body;
 
@@ -21,16 +26,21 @@ class UsersHandler {
       console.error(e);
 
       if (e instanceof ClientError) {
-        return res.status(e.statusCode).json({ status: 'fail', message: e.message });
+        return res.status(e.statusCode || 400).json({ status: 'fail', message: e.message });
       }
 
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
 
+  // LOGIN
   async loginHandler(req, res) {
     try {
-      const { username, password } = req.body || {};
+      if (!req.body || typeof req.body !== 'object') {
+        return res.status(400).json({ status: 'fail', message: 'Invalid payload' });
+      }
+
+      const { username, password } = req.body;
       if (!username || !password) {
         return res.status(400).json({ status: 'fail', message: 'Invalid payload' });
       }
@@ -64,11 +74,12 @@ class UsersHandler {
         data: { accessToken, refreshToken },
       });
     } catch (e) {
-      console.error(e);
+      console.error('Unexpected login error:', e);
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
 
+  // REFRESH TOKEN
   async refreshHandler(req, res) {
     try {
       const { refreshToken } = req.body || {};
@@ -98,6 +109,7 @@ class UsersHandler {
     }
   }
 
+  // LOGOUT
   async logoutHandler(req, res) {
     try {
       const { refreshToken } = req.body || {};
