@@ -10,7 +10,7 @@ class UsersHandler {
   // REGISTER
   async postUserHandler(req, res) {
     try {
-      if (!req.body || typeof req.body !== 'object') {
+      if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
         return res.status(400).json({ status: 'fail', message: 'Invalid payload' });
       }
 
@@ -36,25 +36,28 @@ class UsersHandler {
   // LOGIN
   async loginHandler(req, res) {
     try {
-      if (!req.body || typeof req.body !== 'object') {
+      // Validasi struktur body
+      if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
         return res.status(400).json({ status: 'fail', message: 'Invalid payload' });
       }
 
       const { username, password } = req.body;
-      if (!username || !password) {
-        return res.status(400).json({ status: 'fail', message: 'Invalid payload' });
-      }
 
+      // Cari user berdasarkan username
       const user = await UsersService.getUserByUsername(username);
-      if (!user) {
+
+      // Jika user tidak ditemukan
+      if (!user || typeof user.password !== 'string') {
         return res.status(401).json({ status: 'fail', message: 'Kredensial tidak valid' });
       }
 
+      // Bandingkan password
       const isPasswordMatch = await bcrypt.compare(password, user.password);
       if (!isPasswordMatch) {
         return res.status(401).json({ status: 'fail', message: 'Kredensial tidak valid' });
       }
 
+      // Buat token JWT
       const accessToken = jwt.sign(
         { userId: user.id, username: user.username },
         process.env.ACCESS_TOKEN_KEY,
@@ -83,7 +86,7 @@ class UsersHandler {
   async refreshHandler(req, res) {
     try {
       const { refreshToken } = req.body || {};
-      if (!refreshToken) {
+      if (!refreshToken || typeof refreshToken !== 'string') {
         return res.status(400).json({ status: 'fail', message: 'Invalid payload' });
       }
 
@@ -113,7 +116,7 @@ class UsersHandler {
   async logoutHandler(req, res) {
     try {
       const { refreshToken } = req.body || {};
-      if (!refreshToken) {
+      if (!refreshToken || typeof refreshToken !== 'string') {
         return res.status(400).json({ status: 'fail', message: 'Invalid payload' });
       }
 
