@@ -1,4 +1,5 @@
 const ClientError = require('../../utils/error/ClientError');
+const NotFoundError = require('../../utils/error/NotFoundError');
 
 class CollaboratorHandler {
   constructor(collaborationsService, validator) {
@@ -8,12 +9,14 @@ class CollaboratorHandler {
     this.postCollaboratorHandler = this.postCollaboratorHandler.bind(this);
     this.deleteCollaboratorHandler = this.deleteCollaboratorHandler.bind(this);
   }
-  
-  // Method untuk menambahkan kolaborator
+
+  // Tambah kolaborator
   async postCollaboratorHandler(req, res) {
     try {
       const requesterId = req.auth.userId;
       const { playlistId, userId } = req.body;
+
+      this._validator(req.body);
 
       const collaborationId = await this._collaborationsService.addCollaborator(
         playlistId,
@@ -21,33 +24,37 @@ class CollaboratorHandler {
         requesterId
       );
 
-      res.status(201).json({
+      return res.status(201).json({
         status: 'success',
-        message: 'Kolaborator berhasil ditambahkan',
         data: { collaborationId },
       });
     } catch (error) {
-      res.status(error.statusCode || 500).json({
-        status: 'fail',
-        message: error.message,
+      console.error('postCollaboratorHandler error:', error);
+
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({ status: 'fail', message: error.message });
+      }
+
+      if (error instanceof ClientError) {
+        return res.status(error.statusCode || 400).json({
+          status: 'fail',
+          message: error.message,
+        });
+      }
+
+      return res.status(500).json({
+        status: 'error',
+        message: 'Terjadi kesalahan pada server',
       });
     }
   }
-  // Method untuk menghapus kolaborator
+
+  // Hapus kolaborator
   async deleteCollaboratorHandler(req, res) {
     try {
       this._validator(req.body);
-
       const { playlistId, userId } = req.body;
-
-      const requesterId = req.auth.userId; // Sesuaikan dengan autentikasi yang digunakan
-
-      if (!requesterId) {
-        return res.status(401).json({
-          status: 'fail',
-          message: 'User belum terautentikasi',
-        });
-      }
+      const requesterId = req.auth.userId;
 
       await this._collaborationsService.removeCollaborator(playlistId, userId, requesterId);
 
@@ -58,8 +65,12 @@ class CollaboratorHandler {
     } catch (error) {
       console.error('deleteCollaboratorHandler error:', error);
 
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({ status: 'fail', message: error.message });
+      }
+
       if (error instanceof ClientError) {
-        return res.status(error.statusCode).json({
+        return res.status(error.statusCode || 400).json({
           status: 'fail',
           message: error.message,
         });

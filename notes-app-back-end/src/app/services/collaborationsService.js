@@ -8,15 +8,17 @@ class CollaborationsService {
     this._playlistService = playlistService;
   }
 
-  // Menambahkan kolaborator ke playlist
   async addCollaborator(playlistId, userId, requesterId) {
+    // Pastikan requester adalah owner playlist
     await this._playlistService.verifyPlaylistOwner(playlistId, requesterId);
 
+    // Pastikan user yang akan ditambahkan ada
     const userRes = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
     if (userRes.rowCount === 0) {
       throw new NotFoundError('User tidak ditemukan');
     }
 
+    // Pastikan belum ada kolaborator yang sama
     const existRes = await pool.query(
       'SELECT 1 FROM collaborations WHERE playlist_id = $1 AND user_id = $2',
       [playlistId, userId]
@@ -25,43 +27,34 @@ class CollaborationsService {
       throw new ClientError('User sudah menjadi kolaborator di playlist ini', 400);
     }
 
+    // Tambahkan kolaborator baru
     const id = `collab-${nanoid(16)}`;
-    try {
-      const insertRes = await pool.query(
-        'INSERT INTO collaborations (id, playlist_id, user_id) VALUES ($1, $2, $3) RETURNING id',
-        [id, playlistId, userId]
-      );
+    const insertRes = await pool.query(
+      'INSERT INTO collaborations (id, playlist_id, user_id) VALUES ($1, $2, $3) RETURNING id',
+      [id, playlistId, userId]
+    );
 
-      if (insertRes.rowCount === 0) {
-        throw new ClientError('Gagal menambahkan kolaborator', 400);
-      }
-
-      return insertRes.rows[0].id;
-    } catch (error) {
-      console.error('Database error (addCollaborator):', error);
-      throw new ClientError('Terjadi kesalahan pada database saat menambahkan kolaborator', 500);
+    if (insertRes.rowCount === 0) {
+      throw new ClientError('Gagal menambahkan kolaborator', 400);
     }
+
+    return insertRes.rows[0].id;
   }
 
-  // Menghapus kolaborator dari playlist
   async removeCollaborator(playlistId, userId, requesterId) {
+    // Pastikan requester adalah owner playlist
     await this._playlistService.verifyPlaylistOwner(playlistId, requesterId);
 
-    try {
-      const deleteRes = await pool.query(
-        'DELETE FROM collaborations WHERE playlist_id = $1 AND user_id = $2 RETURNING id',
-        [playlistId, userId]
-      );
+    const deleteRes = await pool.query(
+      'DELETE FROM collaborations WHERE playlist_id = $1 AND user_id = $2 RETURNING id',
+      [playlistId, userId]
+    );
 
-      if (deleteRes.rowCount === 0) {
-        throw new NotFoundError('Kolaborator tidak ditemukan pada playlist ini');
-      }
-
-      return { status: 'success', message: 'Kolaborator berhasil dihapus' };
-    } catch (error) {
-      console.error('Database error (removeCollaborator):', error);
-      throw new ClientError('Terjadi kesalahan pada database saat menghapus kolaborator', 500);
+    if (deleteRes.rowCount === 0) {
+      throw new NotFoundError('Kolaborator tidak ditemukan pada playlist ini');
     }
+
+    return true;
   }
 }
 
