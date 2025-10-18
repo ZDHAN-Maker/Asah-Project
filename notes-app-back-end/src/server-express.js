@@ -34,10 +34,12 @@ const app = express();
 app.use(express.json());
 
 // Inisialisasi service
+const collaborationsService = new CollaborationsService();
+const playlistsService = new PlaylistsService(collaborationsService);
+collaborationsService._playlistService = playlistsService;
+
 const albumsService = new AlbumsService();
 const songsService = new SongsService();
-const playlistsService = new PlaylistsService();
-const collaborationsService = new CollaborationsService(playlistsService);
 
 // Inisialisasi handler
 const albumsHandler = new AlbumsHandler(albumsService, albumValidator, songsService);

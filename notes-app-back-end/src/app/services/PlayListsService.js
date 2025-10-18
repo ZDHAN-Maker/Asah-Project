@@ -5,6 +5,49 @@ const ClientError = require('../utils/error/ClientError');
 const AuthorizationError = require('../utils/error/AuthorizationError');
 
 class PlaylistsService {
+  constructor(collaborationsService) {
+    this._collaborationsService = collaborationsService;
+  }
+
+  async verifyPlaylistOwner(playlistId, ownerId) {
+    const result = await pool.query('SELECT owner FROM playlists WHERE id = $1', [playlistId]);
+
+    if (!result.rowCount) {
+      throw new NotFoundError('Playlist tidak ditemukan');
+    }
+
+    const playlist = result.rows[0];
+    if (playlist.owner !== ownerId) {
+      throw new AuthorizationError('Anda tidak berhak mengakses resource ini');
+    }
+
+    return true;
+  }
+
+  async verifyPlaylistAccess(playlistId, userId) {
+    try {
+      await this.verifyPlaylistOwner(playlistId, userId);
+    } catch (error) {
+      if (error instanceof NotFoundError) throw error;
+      try {
+        await this._collaborationsService.verifyCollaborator(playlistId, userId);
+      } catch {
+        throw new AuthorizationError('Anda tidak memiliki akses ke playlist ini');
+      }
+    }
+  }
+
+  async verifyCollaborator(playlistId, userId) {
+    const result = await pool.query(
+      'SELECT id FROM collaborations WHERE playlist_id = $1 AND user_id = $2',
+      [playlistId, userId]
+    );
+
+    if (result.rowCount === 0) {
+      throw new AuthorizationError('Anda bukan kolaborator di playlist ini');
+    }
+  }
+
   async create({ name, owner }) {
     if (!name || !owner) {
       throw new ClientError('Name and owner are required', 400);
