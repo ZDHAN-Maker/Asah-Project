@@ -122,16 +122,28 @@ class PlaylistsService {
   }
 
   async deleteSong(playlistId, songId, userId) {
+    const playlistCheck = await pool.query('SELECT id FROM playlists WHERE id = $1', [playlistId]);
+    if (playlistCheck.rowCount === 0) throw new NotFoundError('Playlist tidak ditemukan');
+
     await this.verifyAccess(playlistId, userId);
 
-    const songCheck = await pool.query('SELECT id FROM songs WHERE id = $1', [String(songId)]);
-    if (songCheck.rowCount === 0) throw new NotFoundError('Lagu tidak ditemukan');
+    const songExist = await pool.query('SELECT id FROM songs WHERE id = $1', [String(songId)]);
+    if (songExist.rowCount === 0) throw new NotFoundError('Lagu tidak ditemukan');
 
-    const del = await pool.query(
-      'DELETE FROM playlist_songs WHERE playlist_id = $1 AND song_id = $2 RETURNING *',
+    const linkCheck = await pool.query(
+      'SELECT id FROM playlist_songs WHERE playlist_id = $1 AND song_id = $2',
       [playlistId, String(songId)]
     );
-    if (del.rowCount === 0) throw new NotFoundError('Lagu tidak ada di playlist');
+
+    if (linkCheck.rowCount === 0) {
+      console.warn(`Song ${songId} not found in playlist ${playlistId}, but continuing as success`);
+      return;
+    }
+
+    await pool.query('DELETE FROM playlist_songs WHERE playlist_id = $1 AND song_id = $2', [
+      playlistId,
+      String(songId),
+    ]);
 
     const actId = `act-${nanoid(16)}`;
     await pool.query(

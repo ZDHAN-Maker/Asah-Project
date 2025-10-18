@@ -128,16 +128,16 @@ class PlaylistsHandler {
 
   async deleteSong(req, res) {
     try {
+      if (!req.body || typeof req.body !== 'object') {
+        return res.status(400).json({ status: 'fail', message: 'Invalid payload' });
+      }
+
       const songId = String(req.body?.songId || '').trim();
       if (!songId) {
         return res.status(400).json({ status: 'fail', message: 'songId is required' });
       }
 
-      const result = await this.playlistsService.deleteSong(req.params.id, songId, req.auth.userId);
-
-      if (!result) {
-        return res.status(404).json({ status: 'fail', message: 'Song not found in playlist' });
-      }
+      await this.playlistsService.deleteSong(req.params.id, songId, req.auth.userId);
 
       return res.status(200).json({
         status: 'success',
