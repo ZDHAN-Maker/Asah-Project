@@ -1,11 +1,11 @@
 const { nanoid } = require('nanoid');
+const amqp = require('amqplib');
+require('dotenv').config();
+
 const pool = require('../db/index');
 const NotFoundError = require('../utils/error/NotFoundError');
 const ClientError = require('../utils/error/ClientError');
 const AuthorizationError = require('../utils/error/AuthorizationError');
-const amqp = require('amqplib');
-const nodemailer = require('nodemailer');
-require('dotenv').config();
 
 class PlaylistsService {
   constructor(collaborationsService) {
@@ -221,8 +221,8 @@ class PlaylistsService {
       time: r.time,
     }));
   }
-  
-  async function exportPlaylist(playlistId, targetEmail) {
+
+  async exportPlaylist(playlistId, targetEmail) {
     const connection = await amqp.connect(process.env.RABBITMQ_SERVER);
     const channel = await connection.createChannel();
     const queue = 'playlistExportQueue';
@@ -234,10 +234,10 @@ class PlaylistsService {
     console.log(`Export request sent for Playlist ID: ${playlistId}`);
 
     setTimeout(() => {
-        channel.close();
-        connection.close();
+      channel.close();
+      connection.close();
     }, 500);
-}
+  }
 }
 
 module.exports = PlaylistsService;
