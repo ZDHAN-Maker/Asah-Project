@@ -1,7 +1,7 @@
 -- Tabel Playlists
 CREATE TABLE playlists (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     owner INT,
-    FOREIGN KEY (owner) REFERENCES users(id)
+    CONSTRAINT fk_owner FOREIGN KEY (owner) REFERENCES users(id) ON DELETE CASCADE
 );
