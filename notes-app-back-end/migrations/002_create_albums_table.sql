@@ -1,8 +1,7 @@
--- Create table: albums
-CREATE TABLE IF NOT EXISTS albums (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  year INTEGER NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- Tabel Albums
+CREATE TABLE albums (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    year INT NOT NULL,
+    cover VARCHAR(255)
 );

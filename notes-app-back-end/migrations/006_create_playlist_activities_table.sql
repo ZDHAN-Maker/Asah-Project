@@ -1,14 +1,11 @@
-CREATE TABLE IF NOT EXISTS playlist_activities (
-  id TEXT PRIMARY KEY,
-  playlist_id TEXT,
-  song_id TEXT,
-  user_id TEXT,
-  action TEXT,                       
-  time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_playlist FOREIGN KEY(playlist_id)
-    REFERENCES playlists(id),
-  CONSTRAINT fk_song FOREIGN KEY(song_id)
-    REFERENCES songs(id),
-  CONSTRAINT fk_user FOREIGN KEY(user_id)
-    REFERENCES users(id)
+CREATE TABLE playlist_song_activities (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    playlist_id INT,
+    song_id INT,
+    user_id INT,
+    action VARCHAR(255),
+    time TIMESTAMP,
+    FOREIGN KEY (playlist_id) REFERENCES playlists(id),
+    FOREIGN KEY (song_id) REFERENCES songs(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );
