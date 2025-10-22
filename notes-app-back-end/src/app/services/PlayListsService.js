@@ -3,6 +3,9 @@ const pool = require('../db/index');
 const NotFoundError = require('../utils/error/NotFoundError');
 const ClientError = require('../utils/error/ClientError');
 const AuthorizationError = require('../utils/error/AuthorizationError');
+const amqp = require('amqplib');
+const nodemailer = require('nodemailer');
+require('dotenv').config();
 
 class PlaylistsService {
   constructor(collaborationsService) {
@@ -218,6 +221,23 @@ class PlaylistsService {
       time: r.time,
     }));
   }
+  
+  async function exportPlaylist(playlistId, targetEmail) {
+    const connection = await amqp.connect(process.env.RABBITMQ_SERVER);
+    const channel = await connection.createChannel();
+    const queue = 'playlistExportQueue';
+
+    await channel.assertQueue(queue, { durable: true });
+    const message = JSON.stringify({ playlistId, targetEmail });
+    channel.sendToQueue(queue, Buffer.from(message), { persistent: true });
+
+    console.log(`Export request sent for Playlist ID: ${playlistId}`);
+
+    setTimeout(() => {
+        channel.close();
+        connection.close();
+    }, 500);
+}
 }
 
 module.exports = PlaylistsService;
