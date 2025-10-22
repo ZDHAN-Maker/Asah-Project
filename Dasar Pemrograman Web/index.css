@@ -1,0 +1,101 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Sofia&display=swap');
+
+
+
+body {
+  margin: 0;
+  font-family: "Montserrat", sans-serif;
+  line-height: 1.6;
+  background: white;
+  color: black;
+}
+
+
+.header {
+  background: #8d0eb4;
+  color: white;
+  padding: 1rem;
+  text-align: center;
+}
+
+.nav {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.nav a {
+  color: white;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.nav a:hover {
+  text-decoration: underline;
+}
+
+.container {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 20px;
+  gap: 20px;
+}
+
+.content {
+  margin-top: 5px;
+  flex: 3;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.sidebar {
+  flex: 1;
+  background: #d85be9;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  text-align: center;
+}
+
+.profile-pic {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  margin-bottom: 10px;
+}
+
+.footer {
+  background: #a110a1;
+  color: white;
+  text-align: center;
+  padding: 1rem;
+  margin-top: 20px;
+}
+
+.dropdown-content.show {
+  display: block;
+}
+
+/* Dropdown */
+.dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: rgb(168, 54, 153);
+  min-width: 150px;
+  box-shadow: 0px 4px 8px rgba(190, 39, 153, 0.1);
+  z-index: 1000;
+  border-radius: 5px;
+  margin-top: 5px;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #121212;
+  }
+}

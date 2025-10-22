@@ -1,0 +1,49 @@
+{
+  "name": "notes-app-back-end",
+  "version": "1.0.0",
+  "description": "Hapi",
+  "main": "index.js",
+  "scripts": {
+    "start": "node ./src/server-express.js",
+    "dev": "nodemon ./src/server-express.js",
+    "start:prod": "cross-env NODE_ENV=production node ./src/server-express.js",
+    "lint": "eslint ./src",
+    "migrate": "node ./src/run-migration.js"
+  },
+  "keywords": [],
+  "author": "Zidan",
+  "license": "ISC",
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "cross-env": "^10.1.0",
+    "eslint": "^8.52.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.29.0",
+    "nodemon": "^3.1.10",
+    "prettier": "^3.6.2"
+  },
+  "dependencies": {
+    "@hapi/hapi": "^21.4.3",
+    "bcrypt": "^6.0.0",
+    "body-parser": "^2.2.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "joi": "^18.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "nanoid": "^3.1.20",
+    "node-pg-migrate": "^8.0.3",
+    "pg": "^8.16.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "Hapi"
+  },
+  "prettier": {
+    "singleQuote": true,
+    "semi": true,
+    "tabWidth": 2,
+    "trailingComma": "es5",
+    "printWidth": 100,
+    "endOfLine": "auto"
+  }
+}
