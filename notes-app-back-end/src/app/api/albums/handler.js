@@ -1,12 +1,16 @@
 const fs = require('fs');
 const path = require('path');
 const ClientError = require('../../utils/error/ClientError');
+const NotFoundError = require('../../utils/error/NotFoundError');
+const validateAlbum = require('./validator');
 
 class AlbumsHandler {
-  constructor(service, validator, songsService) {
+  constructor(service, validator, songsService, likesService) {
     this._service = service;
-    this._validator = validator;
     this._songsService = songsService;
+    this._likesService = likesService;
+
+    // Bind the handler methods
     this.postAlbumHandler = this.postAlbumHandler.bind(this);
     this.getAlbumByIdHandler = this.getAlbumByIdHandler.bind(this);
     this.putAlbumByIdHandler = this.putAlbumByIdHandler.bind(this);
@@ -20,7 +24,9 @@ class AlbumsHandler {
   // POST /albums
   async postAlbumHandler(req, res) {
     try {
-      this._validator(req.body);
+      // Call validateAlbum function directly
+      validateAlbum(req.body); // Validate the album data using the validator function
+
       const albumId = await this._service.addAlbum(req.body);
       return res.status(201).json({
         status: 'success',
@@ -46,10 +52,10 @@ class AlbumsHandler {
   async getAlbumByIdHandler(req, res) {
     try {
       const { id } = req.params;
-
       const album = await this._service.getAlbumById(id);
+
       if (!album) {
-        throw new ClientError('Album tidak ditemukan', 404);
+        throw new NotFoundError('Album tidak ditemukan', 404);
       }
 
       const songs = await this._songsService.getSongsByAlbumId(id);
@@ -66,14 +72,14 @@ class AlbumsHandler {
         },
       });
     } catch (error) {
-      if (error instanceof ClientError) {
+      console.error('getAlbumByIdHandler error:', error);
+      if (error instanceof NotFoundError) {
         return res.status(error.statusCode).json({
           status: 'fail',
           message: error.message,
         });
       }
 
-      console.error('getAlbumByIdHandler error:', error);
       return res.status(500).json({
         status: 'error',
         message: 'Terjadi kesalahan pada server',
@@ -81,16 +87,19 @@ class AlbumsHandler {
     }
   }
 
+  // PUT /albums/{id}
   async putAlbumByIdHandler(req, res) {
     try {
-      this._validator(req.body);
+      validateAlbum(req.body); // Validate album data here
       const { id } = req.params;
+
       await this._service.editAlbumById(id, req.body);
-      return res.json({
+      return res.status(200).json({
         status: 'success',
         message: 'Album berhasil diperbarui',
       });
     } catch (error) {
+      console.error('putAlbumByIdHandler error:', error);
       if (error instanceof ClientError) {
         return res.status(error.statusCode).json({
           status: 'fail',
@@ -105,16 +114,18 @@ class AlbumsHandler {
     }
   }
 
+  // DELETE /albums/{id}
   async deleteAlbumByIdHandler(req, res) {
     try {
       const { id } = req.params;
       await this._service.deleteAlbumById(id);
-      return res.json({
+      return res.status(200).json({
         status: 'success',
         message: 'Album berhasil dihapus',
       });
     } catch (error) {
-      if (error instanceof ClientError) {
+      console.error('deleteAlbumByIdHandler error:', error);
+      if (error instanceof NotFoundError) {
         return res.status(error.statusCode).json({
           status: 'fail',
           message: error.message,
@@ -128,6 +139,7 @@ class AlbumsHandler {
     }
   }
 
+  // POST /albums/{id}/cover
   async postUploadCover(req, res) {
     try {
       const { id } = req.params;
