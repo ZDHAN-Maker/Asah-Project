@@ -73,6 +73,13 @@ class SongsService {
   }
 
   async updateSongById(id, { title, year, performer, genre, duration, albumId }) {
+    // Cek apakah lagu exists terlebih dahulu
+    const checkSong = await pool.query('SELECT id FROM songs WHERE id = $1', [id]);
+    if (!checkSong.rowCount) {
+      throw new NotFoundError('Lagu tidak ditemukan');
+    }
+
+    // Cek apakah album_id ada dan valid
     if (albumId) {
       const checkAlbum = await pool.query('SELECT id FROM albums WHERE id = $1', [albumId]);
       if (!checkAlbum.rowCount) {
@@ -80,22 +87,23 @@ class SongsService {
       }
     }
 
-    const updatedAt = new Date().toISOString();
-
+    // Query untuk memperbarui lagu - HAPUS updated_at jika kolom tidak ada
     const query = {
       text: `UPDATE songs
-           SET title=$1, year=$2, performer=$3, genre=$4, duration=$5, album_id=$6, updated_at=$7
-           WHERE id=$8
-           RETURNING id`,
-      values: [title, year, performer, genre, duration, albumId || null, updatedAt, id],
+         SET title=$1, year=$2, performer=$3, genre=$4, duration=$5, album_id=$6
+         WHERE id=$7
+         RETURNING id`,
+      values: [title, year, performer, genre, duration, albumId || null, id],
     };
 
     const res = await pool.query(query);
 
+    // Jika tidak ada baris yang diperbarui, lempar error
     if (!res.rowCount) {
       throw new NotFoundError('Gagal memperbarui lagu. Id tidak ditemukan');
     }
 
+    // Mengembalikan ID lagu yang telah diperbarui
     return res.rows[0].id;
   }
 
