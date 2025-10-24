@@ -32,17 +32,26 @@ class AlbumsService {
   }
 
   async getAlbumById(id) {
+    // Log the album id to debug
+    console.log(`Getting album with id: ${id}`);
+
     const query = {
       text: 'SELECT id, name, year, cover_url FROM albums WHERE id = $1',
       values: [id],
     };
+
+    // Execute the query
     const result = await this.pool.query(query);
 
+    // Check if the album exists
     if (!result.rowCount) {
+      // Throw error if album not found
       throw new NotFoundError('Album tidak ditemukan');
     }
 
     const album = result.rows[0];
+
+    // Return the album details
     return {
       id: album.id,
       name: album.name,

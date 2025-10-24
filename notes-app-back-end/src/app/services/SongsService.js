@@ -5,24 +5,28 @@ const InvariantError = require('../utils/error/InvariantError');
 class SongsService {
   async addSong({ title, year, performer, genre, duration, albumId }) {
     if (albumId) {
+      // Check if the album exists in the database
       const checkAlbum = await pool.query('SELECT id FROM albums WHERE id = $1', [albumId]);
+
+      // If no album found, throw an InvariantError
       if (!checkAlbum.rowCount) {
-        throw new InvariantError('Album tidak ditemukan'); // Pastikan album ada
+        throw new InvariantError('Album tidak ditemukan'); // Ensure this error is handled
       }
     }
 
-    const songId = nanoid(); // Membuat ID unik untuk lagu
+    const songId = nanoid(); // Generate unique song ID
     const query = {
       text: 'INSERT INTO songs(id, title, year, performer, genre, duration, album_id) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id',
       values: [songId, title, year, performer, genre, duration, albumId || null],
     };
 
     const result = await pool.query(query);
+
     if (!result.rowCount) {
-      throw new InvariantError('Song gagal ditambahkan'); // Jika lagu gagal disisipkan
+      throw new InvariantError('Song gagal ditambahkan'); // Error if song could not be inserted
     }
 
-    return result.rows[0].id; // Mengembalikan ID lagu yang berhasil disisipkan
+    return result.rows[0].id; // Return the ID of the newly added song
   }
 
   async getSongs({ title, performer }) {
@@ -98,12 +102,20 @@ class SongsService {
   }
 
   async getSongsByAlbumId(albumId) {
+    // Query to get songs by albumId, return an empty array if no songs found
     const query = {
       text: 'SELECT id, title, performer FROM songs WHERE album_id = $1',
       values: [albumId],
     };
+
     const res = await pool.query(query);
-    return res.rows;
+
+    if (!res.rows.length) {
+      // Return a meaningful error or an empty array if no songs are found for the given albumId
+      throw new NotFoundError('No songs found for the given album ID');
+    }
+
+    return res.rows; // Return the list of songs
   }
 }
 
