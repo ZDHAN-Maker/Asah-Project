@@ -4,11 +4,11 @@ const NotFoundError = require('../utils/error/NotFoundError');
 
 class AlbumsService {
   constructor() {
-    this.pool = pool; // Ensure that all methods use the same pool
+    this.pool = pool;
   }
 
   async addAlbum({ name, year }) {
-    const id = `album-${nanoid(16)}`; // Generate a unique ID for the album
+    const id = `album-${nanoid(16)}`;
     const createdAt = new Date().toISOString();
     const updatedAt = createdAt;
 
@@ -37,11 +37,14 @@ class AlbumsService {
 
     const result = await this.pool.query(query);
 
+    // Ensure album exists
     if (!result.rowCount) {
-      throw new NotFoundError('Album not found'); // Ensure proper NotFoundError handling
+      throw new NotFoundError('Album not found');
     }
 
     const album = result.rows[0];
+
+    // Get songs related to the album
     const songsQuery = {
       text: 'SELECT id, title FROM songs WHERE album_id = $1',
       values: [id],
@@ -54,7 +57,7 @@ class AlbumsService {
       name: album.name,
       year: album.year,
       coverUrl: album.cover_url || null,
-      songs: songsResult.rows || [], // Ensure an empty array if no songs are found
+      songs: songsResult.rows || [], // Return empty array if no songs found
     };
   }
 

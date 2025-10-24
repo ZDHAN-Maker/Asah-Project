@@ -90,13 +90,24 @@ class AlbumsHandler {
   // PUT /albums/{id}
   async putAlbumByIdHandler(req, res) {
     try {
-      validateAlbum(req.body); // Validate album data here
       const { id } = req.params;
+      const { name, year } = req.body;
 
-      await this._service.editAlbumById(id, req.body);
+      // Validate album data
+      validateAlbum(req.body);
+
+      // Check if the album exists before updating
+      const albumExists = await this._service.getAlbumById(id);
+      if (!albumExists) {
+        throw new NotFoundError('Album not found for update');
+      }
+
+      // Perform update
+      await this._service.editAlbumById(id, { name, year });
+
       return res.status(200).json({
         status: 'success',
-        message: 'Album berhasil diperbarui',
+        message: 'Album successfully updated',
       });
     } catch (error) {
       console.error('putAlbumByIdHandler error:', error);
@@ -109,7 +120,7 @@ class AlbumsHandler {
 
       return res.status(500).json({
         status: 'error',
-        message: 'Terjadi kesalahan pada server',
+        message: 'Server error occurred while updating the album',
       });
     }
   }
@@ -118,10 +129,19 @@ class AlbumsHandler {
   async deleteAlbumByIdHandler(req, res) {
     try {
       const { id } = req.params;
+
+      // Check if the album exists before deletion
+      const albumExists = await this._service.getAlbumById(id);
+      if (!albumExists) {
+        throw new NotFoundError('Album not found for deletion');
+      }
+
+      // Perform deletion
       await this._service.deleteAlbumById(id);
+
       return res.status(200).json({
         status: 'success',
-        message: 'Album berhasil dihapus',
+        message: 'Album successfully deleted',
       });
     } catch (error) {
       console.error('deleteAlbumByIdHandler error:', error);
@@ -134,7 +154,7 @@ class AlbumsHandler {
 
       return res.status(500).json({
         status: 'error',
-        message: 'Terjadi kesalahan pada server',
+        message: 'Server error occurred while deleting the album',
       });
     }
   }
