@@ -73,13 +73,20 @@ class SongsService {
   }
 
   async updateSongById(id, { title, year, performer, genre, duration, albumId }) {
+    if (albumId) {
+      const checkAlbum = await pool.query('SELECT id FROM albums WHERE id = $1', [albumId]);
+      if (!checkAlbum.rowCount) {
+        throw new InvariantError('Album tidak ditemukan');
+      }
+    }
+
     const updatedAt = new Date().toISOString();
 
     const query = {
       text: `UPDATE songs
-             SET title = $1, year = $2, performer = $3, genre = $4, duration = $5, album_id = $6, updated_at = $7
-             WHERE id = $8
-             RETURNING id`,
+           SET title=$1, year=$2, performer=$3, genre=$4, duration=$5, album_id=$6, updated_at=$7
+           WHERE id=$8
+           RETURNING id`,
       values: [title, year, performer, genre, duration, albumId || null, updatedAt, id],
     };
 

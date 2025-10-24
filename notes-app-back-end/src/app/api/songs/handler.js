@@ -23,9 +23,7 @@ class SongsHandler {
       return res.status(201).json({
         status: 'success',
         message: 'Lagu berhasil ditambahkan',
-        data: {
-          songId,
-        },
+        data: { songId },
       });
     } catch (error) {
       if (error instanceof ClientError) {
@@ -74,19 +72,20 @@ class SongsHandler {
     try {
       const { id } = req.params;
       const song = await this._service.getSongById(id);
-      const responseSong = {
-        id: song.id,
-        title: song.title,
-        year: song.year,
-        performer: song.performer,
-        genre: song.genre || null,
-        duration: song.duration || null,
-        albumId: song.albumId || null,
-      };
 
       return res.status(200).json({
         status: 'success',
-        data: { song: responseSong },
+        data: {
+          song: {
+            id: song.id,
+            title: song.title,
+            year: song.year,
+            performer: song.performer,
+            genre: song.genre || null,
+            duration: song.duration || null,
+            albumId: song.albumId || null,
+          },
+        },
       });
     } catch (error) {
       if (error instanceof ClientError) {
@@ -105,21 +104,33 @@ class SongsHandler {
 
   async putSongByIdHandler(req, res) {
     try {
-      this._validator.validateSong(req.body);
+      this._validator.validateSong(req.body); // Validasi input
       const { id } = req.params;
-      await this._service.updateSongById(id, req.body);
+
+      // Update lagu, sekaligus memastikan lagu ada
+      const updatedSongId = await this._service.updateSongById(id, req.body);
+      const updatedSong = await this._service.getSongById(updatedSongId);
 
       return res.status(200).json({
         status: 'success',
         message: 'Lagu berhasil diperbarui',
+        data: { song: updatedSong },
       });
     } catch (error) {
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({
+          status: 'fail',
+          message: error.message,
+        });
+      }
+
       if (error instanceof ClientError) {
         return res.status(error.statusCode).json({
           status: 'fail',
           message: error.message,
         });
       }
+
       console.error('putSongByIdHandler Error:', error);
       return res.status(500).json({
         status: 'error',
