@@ -10,6 +10,7 @@ class PlaylistsHandler {
     this._collaborationsService = collaborationsService;
   }
 
+  // Fungsi untuk membuat playlist
   async postPlaylist(req, res) {
     try {
       if (!req.body || typeof req.body !== 'object') {
@@ -24,7 +25,7 @@ class PlaylistsHandler {
       });
 
       return res.status(201).json({
-        status: 'success',
+        status: 'success', // Respons status 'success' untuk berhasil
         data: { playlistId: id },
       });
     } catch (e) {
@@ -41,38 +42,7 @@ class PlaylistsHandler {
     }
   }
 
-  async getPlaylists(req, res) {
-    try {
-      const playlists = await this._playlistsService.getForUser(req.auth.userId);
-      return res.status(200).json({ status: 'success', data: { playlists } });
-    } catch (e) {
-      console.error('Unexpected error in getPlaylists:', e);
-      return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
-    }
-  }
-
-  async deletePlaylist(req, res) {
-    try {
-      await this._playlistsService.delete(req.params.id, req.auth.userId);
-      return res.status(200).json({ status: 'success', message: 'Playlist berhasil dihapus' });
-    } catch (e) {
-      if (e instanceof NotFoundError) {
-        return res.status(404).json({ status: 'fail', message: e.message });
-      }
-
-      if (e instanceof AuthorizationError) {
-        return res.status(403).json({ status: 'fail', message: e.message });
-      }
-
-      if (e instanceof ClientError) {
-        return res.status(400).json({ status: 'fail', message: e.message });
-      }
-
-      console.error('Unexpected error in deletePlaylist:', e);
-      return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
-    }
-  }
-
+  // Fungsi untuk menambahkan lagu ke playlist
   async postSong(req, res) {
     try {
       if (!req.body || typeof req.body !== 'object') {
@@ -83,7 +53,7 @@ class PlaylistsHandler {
       await this._playlistsService.addSong(req.params.id, req.body.songId, req.auth.userId);
 
       return res.status(201).json({
-        status: 'success',
+        status: 'success', // Respons status 'success' untuk berhasil
         message: 'Lagu berhasil ditambahkan ke playlist',
       });
     } catch (e) {
@@ -104,13 +74,30 @@ class PlaylistsHandler {
     }
   }
 
-  async getSongs(req, res) {
+  // Fungsi untuk mengambil playlist milik user
+  async getPlaylists(req, res) {
     try {
-      const result = await this._playlistsService.getSongs(req.params.id, req.auth.userId);
+      const playlists = await this._playlistsService.getForUser(req.auth.userId);
+      return res.status(200).json({
+        // Respons status 'success' untuk berhasil
+        status: 'success',
+        data: { playlists },
+      });
+    } catch (e) {
+      console.error('Unexpected error in getPlaylists:', e);
+      return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
+    }
+  }
+
+  // Fungsi untuk menghapus playlist
+  async deletePlaylist(req, res) {
+    try {
+      await this._playlistsService.delete(req.params.id, req.auth.userId);
 
       return res.status(200).json({
+        // Respons status 'success' untuk berhasil
         status: 'success',
-        data: result.data,
+        message: 'Playlist berhasil dihapus',
       });
     } catch (e) {
       if (e instanceof NotFoundError) {
@@ -121,11 +108,16 @@ class PlaylistsHandler {
         return res.status(403).json({ status: 'fail', message: e.message });
       }
 
-      console.error('Unexpected error in getSongs handler:', e);
+      if (e instanceof ClientError) {
+        return res.status(400).json({ status: 'fail', message: e.message });
+      }
+
+      console.error('Unexpected error in deletePlaylist:', e);
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
 
+  // Fungsi untuk menghapus lagu dari playlist
   async deleteSong(req, res) {
     try {
       if (!req.body || typeof req.body !== 'object') {
@@ -138,7 +130,7 @@ class PlaylistsHandler {
       await this._playlistsService.deleteSong(req.params.id, songId, req.auth.userId);
 
       return res.status(200).json({
-        status: 'success',
+        status: 'success', // Respons status 'success' untuk berhasil
         message: 'Lagu berhasil dihapus dari playlist',
       });
     } catch (e) {
@@ -159,11 +151,35 @@ class PlaylistsHandler {
     }
   }
 
+  // Fungsi untuk mengambil lagu dari playlist
+  async getSongs(req, res) {
+    try {
+      const result = await this._playlistsService.getSongs(req.params.id, req.auth.userId);
+
+      return res.status(200).json({
+        status: 'success', // Respons status 'success' untuk berhasil
+        data: result.data,
+      });
+    } catch (e) {
+      if (e instanceof NotFoundError) {
+        return res.status(404).json({ status: 'fail', message: e.message });
+      }
+
+      if (e instanceof AuthorizationError) {
+        return res.status(403).json({ status: 'fail', message: e.message });
+      }
+
+      console.error('Unexpected error in getSongs handler:', e);
+      return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
+    }
+  }
+
+  // Fungsi untuk mengambil aktivitas playlist
   async getActivities(req, res) {
     try {
       const activities = await this._playlistsService.getActivities(req.params.id, req.auth.userId);
       return res.status(200).json({
-        status: 'success',
+        status: 'success', // Respons status 'success' untuk berhasil
         data: {
           playlistId: req.params.id,
           activities,
@@ -183,6 +199,7 @@ class PlaylistsHandler {
     }
   }
 
+  // Fungsi untuk mengekspor playlist
   async postExportPlaylist(req, res) {
     try {
       const {
@@ -202,7 +219,7 @@ class PlaylistsHandler {
       await this._playlistsService.exportPlaylist(id, targetEmail);
 
       return res.status(201).json({
-        status: 'success',
+        status: 'success', // Respons status 'success' untuk berhasil
         message: 'Permintaan Anda sedang kami proses',
       });
     } catch (e) {
