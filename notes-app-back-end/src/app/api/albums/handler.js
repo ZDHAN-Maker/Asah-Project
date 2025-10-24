@@ -49,17 +49,21 @@ class AlbumsHandler {
   }
 
   // GET /albums/{id}
+  // GET /albums/{id}
   async getAlbumByIdHandler(req, res) {
     try {
       const { id } = req.params;
       const album = await this._service.getAlbumById(id);
 
+      // PERBAIKAN: Cek jika album null/tidak ditemukan
       if (!album) {
-        throw new NotFoundError('Album tidak ditemukan', 404);
+        return res.status(404).json({
+          status: 'fail',
+          message: 'Album tidak ditemukan',
+        });
       }
 
-      const songs = await this._songsService.getSongsByAlbumId(id);
-
+      // PERBAIKAN: Tidak perlu memanggil songsService lagi karena sudah termasuk di service
       return res.status(200).json({
         status: 'success',
         data: {
@@ -67,19 +71,13 @@ class AlbumsHandler {
             id: album.id,
             name: album.name,
             year: album.year,
-            songs,
+            coverUrl: album.coverUrl,
+            songs: album.songs, // Gunakan songs dari service
           },
         },
       });
     } catch (error) {
       console.error('getAlbumByIdHandler error:', error);
-      if (error instanceof NotFoundError) {
-        return res.status(error.statusCode).json({
-          status: 'fail',
-          message: error.message,
-        });
-      }
-
       return res.status(500).json({
         status: 'error',
         message: 'Terjadi kesalahan pada server',
@@ -87,6 +85,7 @@ class AlbumsHandler {
     }
   }
 
+  // PUT /albums/{id}
   // PUT /albums/{id}
   async putAlbumByIdHandler(req, res) {
     try {
@@ -96,10 +95,13 @@ class AlbumsHandler {
       // Validate album data
       validateAlbum(req.body);
 
-      // Check if the album exists before updating
+      // PERBAIKAN: Cek jika album exists dengan cara yang sama seperti GET
       const albumExists = await this._service.getAlbumById(id);
       if (!albumExists) {
-        throw new NotFoundError('Album not found for update');
+        return res.status(404).json({
+          status: 'fail',
+          message: 'Album tidak ditemukan',
+        });
       }
 
       // Perform update
@@ -107,7 +109,7 @@ class AlbumsHandler {
 
       return res.status(200).json({
         status: 'success',
-        message: 'Album successfully updated',
+        message: 'Album berhasil diperbarui',
       });
     } catch (error) {
       console.error('putAlbumByIdHandler error:', error);
@@ -120,7 +122,7 @@ class AlbumsHandler {
 
       return res.status(500).json({
         status: 'error',
-        message: 'Server error occurred while updating the album',
+        message: 'Terjadi kesalahan server saat memperbarui album',
       });
     }
   }

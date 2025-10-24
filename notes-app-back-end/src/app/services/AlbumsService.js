@@ -37,16 +37,16 @@ class AlbumsService {
 
     const result = await this.pool.query(query);
 
-    // Ensure album exists
-    if (!result.rowCount) {
-      throw new NotFoundError('Album not found');
+    // PERBAIKAN: Cek jika album tidak ditemukan
+    if (result.rows.length === 0) {
+      return null; // Return null instead of throwing error
     }
 
     const album = result.rows[0];
 
     // Get songs related to the album
     const songsQuery = {
-      text: 'SELECT id, title FROM songs WHERE album_id = $1',
+      text: 'SELECT id, title, performer FROM songs WHERE album_id = $1',
       values: [id],
     };
 
@@ -67,13 +67,15 @@ class AlbumsService {
       text: 'UPDATE albums SET name=$1, year=$2, updated_at=$3 WHERE id=$4 RETURNING id',
       values: [name, year, updatedAt, id],
     };
+
     const res = await this.pool.query(query);
 
-    if (!res.rowCount) {
-      throw new NotFoundError('Album not found for update');
+    // PERBAIKAN: Cek jika album tidak ditemukan
+    if (res.rows.length === 0) {
+      throw new NotFoundError('Album tidak ditemukan untuk diperbarui');
     }
 
-    return res.rows[0].id; // Return the album ID as a string
+    return res.rows[0].id;
   }
 
   async deleteAlbumById(id) {
