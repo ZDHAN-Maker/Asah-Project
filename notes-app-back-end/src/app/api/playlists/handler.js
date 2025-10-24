@@ -183,6 +183,50 @@ class PlaylistsHandler {
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
+
+  async postExportPlaylist(req, res) {
+    try {
+      const { id } = req.params; // playlistId
+      const { targetEmail } = req.body || {};
+      const userId = req.user && req.user.id;
+
+      if (!targetEmail || typeof targetEmail !== 'string') {
+        return res.status(400).json({
+          status: 'fail',
+          message: 'targetEmail is required',
+        });
+      }
+
+      // Verifikasi bahwa user adalah pemilik playlist
+      await this._service.verifyPlaylistOwner(id, userId);
+
+      // Kirim ke RabbitMQ (producer)
+      await this._service.exportPlaylist(id, targetEmail);
+
+      return res.status(201).json({
+        status: 'success',
+        message: 'Permintaan Anda sedang kami proses',
+      });
+    } catch (e) {
+      if (e instanceof ClientError) {
+        return res.status(e.statusCode || 400).json({
+          status: 'fail',
+          message: e.message,
+        });
+      }
+      if (e instanceof AuthorizationError) {
+        return res.status(403).json({ status: 'fail', message: e.message });
+      }
+      if (e instanceof NotFoundError) {
+        return res.status(404).json({ status: 'fail', message: e.message });
+      }
+      console.error('postExportPlaylist error:', e);
+      return res.status(500).json({
+        status: 'error',
+        message: 'Terjadi kesalahan pada server',
+      });
+    }
+  }
 }
 
 module.exports = PlaylistsHandler;

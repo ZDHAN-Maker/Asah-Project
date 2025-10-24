@@ -1,11 +1,16 @@
 const { nanoid } = require('nanoid');
 const amqp = require('amqplib');
+const nodemailer = require('nodemailer');
+const { Pool } = require('pg');
 require('dotenv').config();
 
-const pool = require('../db/index');
 const NotFoundError = require('../utils/error/NotFoundError');
 const ClientError = require('../utils/error/ClientError');
 const AuthorizationError = require('../utils/error/AuthorizationError');
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
 
 class PlaylistsService {
   constructor(collaborationsService) {
@@ -18,20 +23,18 @@ class PlaylistsService {
     if (!result.rowCount) {
       throw new NotFoundError('Playlist tidak ditemukan');
     }
-
-    const playlist = result.rows[0];
-    if (playlist.owner !== ownerId) {
+    if (result.rows[0].owner !== ownerId) {
       throw new AuthorizationError('Anda tidak berhak mengakses resource ini');
     }
-
-    return true;
   }
 
   async verifyPlaylistAccess(playlistId, userId) {
     try {
       await this.verifyPlaylistOwner(playlistId, userId);
     } catch (error) {
-      if (error instanceof NotFoundError) throw error;
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
       try {
         await this._collaborationsService.verifyCollaborator(playlistId, userId);
       } catch {
@@ -46,7 +49,7 @@ class PlaylistsService {
       [playlistId, userId]
     );
 
-    if (result.rowCount === 0) {
+    if (!result.rowCount) {
       throw new AuthorizationError('Anda bukan kolaborator di playlist ini');
     }
   }
@@ -62,9 +65,7 @@ class PlaylistsService {
       values: [id, name, owner],
     };
 
-    const result = await pool.query(query);
-    if (result.rowCount === 0) throw new ClientError('Gagal membuat playlist', 400);
-
+    await pool.query(query);
     return id;
   }
 
@@ -86,25 +87,12 @@ class PlaylistsService {
     return rows;
   }
 
-  async verifyAccess(playlistId, userId) {
-    const ownerRes = await pool.query('SELECT 1 FROM playlists WHERE id = $1 AND owner = $2', [
-      playlistId,
-      userId,
-    ]);
-    if (ownerRes.rowCount > 0) return true;
-
-    const collabRes = await pool.query(
-      'SELECT 1 FROM collaborations WHERE playlist_id = $1 AND user_id = $2',
-      [playlistId, userId]
-    );
-    if (collabRes.rowCount > 0) return true;
-
-    throw new AuthorizationError('Anda tidak berhak mengakses resource ini');
-  }
-
   async delete(playlistId, userId) {
     const check = await pool.query('SELECT owner FROM playlists WHERE id = $1', [playlistId]);
-    if (check.rowCount === 0) throw new NotFoundError('Playlist tidak ditemukan');
+
+    if (!check.rowCount) {
+      throw new NotFoundError('Playlist tidak ditemukan');
+    }
     if (check.rows[0].owner !== userId) {
       throw new AuthorizationError('Anda tidak berhak mengakses playlist ini');
     }
@@ -115,10 +103,12 @@ class PlaylistsService {
   }
 
   async addSong(playlistId, songId, userId) {
-    await this.verifyAccess(playlistId, userId);
+    await this.verifyPlaylistAccess(playlistId, userId);
 
     const songCheck = await pool.query('SELECT id FROM songs WHERE id = $1', [String(songId)]);
-    if (songCheck.rowCount === 0) throw new NotFoundError('Lagu tidak ditemukan');
+    if (!songCheck.rowCount) {
+      throw new NotFoundError('Lagu tidak ditemukan');
+    }
 
     const id = `ps-${nanoid(16)}`;
     await pool.query('INSERT INTO playlist_songs (id, playlist_id, song_id) VALUES ($1, $2, $3)', [
@@ -142,9 +132,12 @@ class PlaylistsService {
       WHERE p.id = $1
     `;
     const metaRes = await pool.query(metaQ, [playlistId]);
-    if (metaRes.rowCount === 0) throw new NotFoundError('Playlist tidak ditemukan');
 
-    await this.verifyAccess(playlistId, userId);
+    if (!metaRes.rowCount) {
+      throw new NotFoundError('Playlist tidak ditemukan');
+    }
+
+    await this.verifyPlaylistAccess(playlistId, userId);
 
     const songsQ = `
       SELECT s.id, s.title, s.performer
@@ -168,22 +161,11 @@ class PlaylistsService {
   }
 
   async deleteSong(playlistId, songId, userId) {
-    const playlistCheck = await pool.query('SELECT id FROM playlists WHERE id = $1', [playlistId]);
-    if (playlistCheck.rowCount === 0) throw new NotFoundError('Playlist tidak ditemukan');
-
-    await this.verifyAccess(playlistId, userId);
+    await this.verifyPlaylistAccess(playlistId, userId);
 
     const songExist = await pool.query('SELECT id FROM songs WHERE id = $1', [String(songId)]);
-    if (songExist.rowCount === 0) throw new NotFoundError('Lagu tidak ditemukan');
-
-    const linkCheck = await pool.query(
-      'SELECT id FROM playlist_songs WHERE playlist_id = $1 AND song_id = $2',
-      [playlistId, String(songId)]
-    );
-
-    if (linkCheck.rowCount === 0) {
-      console.warn(`Song ${songId} not found in playlist ${playlistId}, but continuing as success`);
-      return;
+    if (!songExist.rowCount) {
+      throw new NotFoundError('Lagu tidak ditemukan');
     }
 
     await pool.query('DELETE FROM playlist_songs WHERE playlist_id = $1 AND song_id = $2', [
@@ -199,10 +181,7 @@ class PlaylistsService {
   }
 
   async getActivities(playlistId, userId) {
-    const check = await pool.query('SELECT id FROM playlists WHERE id = $1', [playlistId]);
-    if (check.rowCount === 0) throw new NotFoundError('Playlist tidak ditemukan');
-
-    await this.verifyAccess(playlistId, userId);
+    await this.verifyPlaylistAccess(playlistId, userId);
 
     const q = `
       SELECT u.username, s.title, pa.action, pa.time
@@ -232,11 +211,84 @@ class PlaylistsService {
     channel.sendToQueue(queue, Buffer.from(message), { persistent: true });
 
     console.log(`Export request sent for Playlist ID: ${playlistId}`);
-
     setTimeout(() => {
       channel.close();
       connection.close();
     }, 500);
+  }
+
+  async getPlaylistData(playlistId) {
+    const playlistQuery = `
+      SELECT p.id, p.name, u.username
+      FROM playlists p
+      JOIN users u ON u.id = p.owner
+      WHERE p.id = $1
+    `;
+    const songsQuery = `
+      SELECT s.id, s.title, s.performer
+      FROM playlist_songs ps
+      JOIN songs s ON s.id = ps.song_id
+      WHERE ps.playlist_id = $1
+    `;
+
+    const playlistRes = await pool.query(playlistQuery, [playlistId]);
+    if (!playlistRes.rowCount) {
+      throw new NotFoundError('Playlist tidak ditemukan');
+    }
+
+    const songsRes = await pool.query(songsQuery, [playlistId]);
+    return {
+      id: playlistRes.rows[0].id,
+      name: playlistRes.rows[0].name,
+      username: playlistRes.rows[0].username,
+      songs: songsRes.rows,
+    };
+  }
+
+  async sendExportEmail(playlistData, targetEmail) {
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.SMTP_USER,
+      to: targetEmail,
+      subject: `Export Playlist: ${playlistData.name}`,
+      text: JSON.stringify(playlistData, null, 2),
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log('Export email sent to ' + targetEmail);
+  }
+
+  async listenForPlaylistExportRequests() {
+    const connection = await amqp.connect(process.env.RABBITMQ_SERVER);
+    const channel = await connection.createChannel();
+    const queue = 'playlistExportQueue';
+
+    await channel.assertQueue(queue, { durable: true });
+
+    console.log('Waiting for export requests...');
+    channel.consume(
+      queue,
+      async (msg) => {
+        try {
+          const { playlistId, targetEmail } = JSON.parse(msg.content.toString());
+          const playlistData = await this.getPlaylistData(playlistId);
+          await this.sendExportEmail(playlistData, targetEmail);
+          channel.ack(msg);
+        } catch (err) {
+          console.error('Failed to process export:', err.message);
+        }
+      },
+      { noAck: false }
+    );
   }
 }
 

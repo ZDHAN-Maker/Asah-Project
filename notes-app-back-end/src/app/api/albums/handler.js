@@ -1,5 +1,6 @@
 const ClientError = require('../../utils/error/ClientError');
-
+const fs = require('fs');
+const path = require('path');
 class AlbumsHandler {
   constructor(service, validator, songsService) {
     this._service = service;
@@ -9,6 +10,7 @@ class AlbumsHandler {
     this.getAlbumByIdHandler = this.getAlbumByIdHandler.bind(this);
     this.putAlbumByIdHandler = this.putAlbumByIdHandler.bind(this);
     this.deleteAlbumByIdHandler = this.deleteAlbumByIdHandler.bind(this);
+    this.uploadAlbumCoverHandler = this.uploadAlbumCoverHandler.bind(this);
   }
 
   // POST /albums
@@ -119,6 +121,93 @@ class AlbumsHandler {
         status: 'error',
         message: 'Terjadi kesalahan pada server',
       });
+    }
+  }
+
+  async postUploadCover(req, res) {
+    try {
+      const { id } = req.params;
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ status: 'fail', message: 'File tidak ditemukan' });
+      }
+
+      const fileSize = file.size;
+      if (fileSize > 512000) {
+        fs.unlinkSync(file.path);
+        return res.status(400).json({ status: 'fail', message: 'Ukuran file maksimal 512KB' });
+      }
+
+      if (!file.mimetype.startsWith('image/')) {
+        fs.unlinkSync(file.path);
+        return res.status(400).json({ status: 'fail', message: 'File harus berupa gambar' });
+      }
+
+      // Simpan file ke uploads
+      const newFileName = `${id}-${Date.now()}${path.extname(file.originalname)}`;
+      const newPath = path.join('uploads', newFileName);
+      fs.renameSync(file.path, newPath);
+
+      // Simpan URL ke database
+      const coverUrl = `${process.env.SERVER_URL || ''}/uploads/${newFileName}`;
+      await this._service.updateCoverUrl(id, coverUrl);
+
+      return res.status(201).json({
+        status: 'success',
+        message: 'Sampul berhasil diunggah',
+        coverUrl,
+      });
+    } catch (e) {
+      console.error(e);
+      return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan server' });
+    }
+  }
+
+  // Menyukai album
+  async postLikeAlbum(req, res) {
+    try {
+      const { id: albumId } = req.params;
+      const userId = req.user.id;
+      await this._likesService.likeAlbum(albumId, userId);
+      return res.status(201).json({ status: 'success', message: 'Album disukai' });
+    } catch (e) {
+      if (e.message.includes('sudah menyukai')) {
+        return res.status(400).json({ status: 'fail', message: e.message });
+      }
+      console.error(e);
+      return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan server' });
+    }
+  }
+
+  // Batal menyukai album
+  async deleteLikeAlbum(req, res) {
+    try {
+      const { id: albumId } = req.params;
+      const userId = req.user.id;
+      await this._likesService.unlikeAlbum(albumId, userId);
+      return res.status(200).json({ status: 'success', message: 'Batal menyukai album' });
+    } catch (e) {
+      console.error(e);
+      return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan server' });
+    }
+  }
+
+  // Mendapatkan jumlah yang menyukai album
+  async getAlbumLikes(req, res) {
+    try {
+      const { id: albumId } = req.params;
+      const result = await this._likesService.getLikesCount(albumId);
+      const headers = result.fromCache ? { 'X-Data-Source': 'cache' } : {};
+      return res
+        .status(200)
+        .set(headers)
+        .json({
+          status: 'success',
+          data: { likes: result.count },
+        });
+    } catch (e) {
+      console.error(e);
+      return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan server' });
     }
   }
 }

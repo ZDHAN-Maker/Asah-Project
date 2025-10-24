@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const path = require('path');
 
 // Users
 const UsersHandler = require('./app/api/users/handler');
@@ -30,8 +31,10 @@ const CollaboratorHandler = require('./app/api/collaborations/handler');
 const createCollaboratorRoute = require('./app/api/collaborations/routes');
 
 // Inisialisasi express
+
 const app = express();
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Inisialisasi service
 const collaborationsService = new CollaborationsService();
@@ -69,4 +72,10 @@ app.listen(PORT, () => {
   console.log(`✅ Server berjalan pada port ${PORT}`);
 });
 
+// Mulai consumer untuk ekspor playlist
+try {
+  playlistsService.listenForPlaylistExportRequests();
+} catch (e) {
+  console.warn('Failed to start playlist export consumer:', e.message);
+}
 module.exports = app;
