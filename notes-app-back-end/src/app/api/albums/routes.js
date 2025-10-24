@@ -7,7 +7,7 @@ function createAlbumsRouter(handler) {
   // Konfigurasi multer
   const upload = multer({
     dest: 'uploads/',
-    limits: { fileSize: 512000 },
+    limits: { fileSize: 512000 }, // Maks 512 KB
     fileFilter: (req, file, cb) => {
       if (!file.mimetype.startsWith('image/')) {
         return cb(new Error('Hanya file gambar yang diperbolehkan'));
@@ -17,18 +17,17 @@ function createAlbumsRouter(handler) {
   }).single('cover');
 
   // CRUD routes
-  router.post('/', handler.postAlbumHandler);
-  router.get('/:id', handler.getAlbumByIdHandler);
-  router.put('/:id', handler.putAlbumByIdHandler);
-  router.delete('/:id', handler.deleteAlbumByIdHandler);
-  router.post('/:id/covers', upload, handler.uploadAlbumCoverHandler);
-  // Route upload cover
-  router.post('/albums/:id/covers', auth, upload, (req, res) => handler.postUploadCover(req, res));
+  router.post('/', (req, res) => handler.postAlbumHandler(req, res));
+  router.get('/:id', (req, res) => handler.getAlbumByIdHandler(req, res));
+  router.put('/:id', (req, res) => handler.putAlbumByIdHandler(req, res));
+  router.delete('/:id', (req, res) => handler.deleteAlbumByIdHandler(req, res));
 
-  // Route like/unlike/get likes
-  router.post('/albums/:id/likes', auth, (req, res) => handler.postLikeAlbum(req, res));
-  router.delete('/albums/:id/likes', auth, (req, res) => handler.deleteLikeAlbum(req, res));
-  router.get('/albums/:id/likes', (req, res) => handler.getAlbumLikes(req, res));
+  // Upload cover dan fitur like
+  router.post('/:id/covers', upload, (req, res) => handler.postUploadCover(req, res));
+  router.post('/:id/likes', (req, res) => handler.postLikeAlbum(req, res));
+  router.delete('/:id/likes', (req, res) => handler.deleteLikeAlbum(req, res));
+  router.get('/:id/likes', (req, res) => handler.getAlbumLikes(req, res));
+
   return router;
 }
 

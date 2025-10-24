@@ -1,7 +1,8 @@
--- Tabel Albums
 CREATE TABLE albums (
-    id SERIAL PRIMARY KEY,
+    id TEXT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     year INT NOT NULL,
-    cover VARCHAR(255)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  
+    cover_url VARCHAR(255) 
 );

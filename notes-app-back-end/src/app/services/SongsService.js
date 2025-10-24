@@ -7,30 +7,22 @@ class SongsService {
     if (albumId) {
       const checkAlbum = await pool.query('SELECT id FROM albums WHERE id = $1', [albumId]);
       if (!checkAlbum.rowCount) {
-        throw new InvariantError('Album tidak ditemukan');
+        throw new InvariantError('Album tidak ditemukan'); // Pastikan album ada
       }
     }
 
-    const id = `song-${nanoid(16)}`;
-    const createdAt = new Date().toISOString();
-    const updatedAt = createdAt;
-
+    const songId = nanoid(); // Membuat ID unik untuk lagu
     const query = {
-      text: `
-        INSERT INTO songs(id, title, year, performer, genre, duration, album_id, created_at, updated_at)
-        VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING id
-      `,
-      values: [id, title, year, performer, genre, duration, albumId || null, createdAt, updatedAt],
+      text: 'INSERT INTO songs(id, title, year, performer, genre, duration, album_id) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id',
+      values: [songId, title, year, performer, genre, duration, albumId || null],
     };
 
     const result = await pool.query(query);
-
     if (!result.rowCount) {
-      throw new InvariantError('Lagu gagal ditambahkan');
+      throw new InvariantError('Song gagal ditambahkan'); // Jika lagu gagal disisipkan
     }
 
-    return result.rows[0].id;
+    return result.rows[0].id; // Mengembalikan ID lagu yang berhasil disisipkan
   }
 
   async getSongs({ title, performer }) {

@@ -1,11 +1,10 @@
--- Tabel Songs
 CREATE TABLE songs (
-    id SERIAL PRIMARY KEY,
+    id TEXT PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
-    year INT NOT NULL,
-    performer VARCHAR(255) NOT NULL,
+    year INT,
+    performer VARCHAR(255),
     genre VARCHAR(255),
-    duration INTERVAL,
-    album_id INT,
-    CONSTRAINT fk_album FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE SET NULL
+    duration INT,
+    album_id TEXT,  -- Mengubah tipe data menjadi TEXT
+    FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE CASCADE
 );
