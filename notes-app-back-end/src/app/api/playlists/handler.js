@@ -2,12 +2,12 @@ const ClientError = require('../../utils/error/ClientError');
 const InvariantError = require('../../utils/error/InvariantError');
 const NotFoundError = require('../../utils/error/NotFoundError');
 const AuthorizationError = require('../../utils/error/AuthorizationError');
-const PlaylistsService = require('../../services/PlayListsService');
 const { validateCreate, validateSongPayload } = require('./validator');
 
 class PlaylistsHandler {
-  constructor() {
-    this.playlistsService = new PlaylistsService();
+  constructor(playlistsService, collaborationsService) {
+    this._playlistsService = playlistsService;
+    this._collaborationsService = collaborationsService;
   }
 
   async postPlaylist(req, res) {
@@ -18,7 +18,7 @@ class PlaylistsHandler {
 
       validateCreate(req.body);
 
-      const id = await this.playlistsService.create({
+      const id = await this._playlistsService.create({
         name: req.body.name,
         owner: req.auth.userId,
       });
@@ -43,7 +43,7 @@ class PlaylistsHandler {
 
   async getPlaylists(req, res) {
     try {
-      const playlists = await this.playlistsService.getForUser(req.auth.userId);
+      const playlists = await this._playlistsService.getForUser(req.auth.userId);
       return res.status(200).json({ status: 'success', data: { playlists } });
     } catch (e) {
       console.error('Unexpected error in getPlaylists:', e);
@@ -53,7 +53,7 @@ class PlaylistsHandler {
 
   async deletePlaylist(req, res) {
     try {
-      await this.playlistsService.delete(req.params.id, req.auth.userId);
+      await this._playlistsService.delete(req.params.id, req.auth.userId);
       return res.status(200).json({ status: 'success', message: 'Playlist berhasil dihapus' });
     } catch (e) {
       if (e instanceof NotFoundError) {
@@ -80,7 +80,7 @@ class PlaylistsHandler {
       }
 
       validateSongPayload(req.body);
-      await this.playlistsService.addSong(req.params.id, req.body.songId, req.auth.userId);
+      await this._playlistsService.addSong(req.params.id, req.body.songId, req.auth.userId);
 
       return res.status(201).json({
         status: 'success',
@@ -106,7 +106,7 @@ class PlaylistsHandler {
 
   async getSongs(req, res) {
     try {
-      const result = await this.playlistsService.getSongs(req.params.id, req.auth.userId);
+      const result = await this._playlistsService.getSongs(req.params.id, req.auth.userId);
 
       return res.status(200).json({
         status: 'success',
@@ -132,11 +132,10 @@ class PlaylistsHandler {
         return res.status(400).json({ status: 'fail', message: 'Invalid payload' });
       }
 
-      // 🔹 Gunakan validator yang sama seperti postSong
       validateSongPayload(req.body);
       const { songId } = req.body;
 
-      await this.playlistsService.deleteSong(req.params.id, songId, req.auth.userId);
+      await this._playlistsService.deleteSong(req.params.id, songId, req.auth.userId);
 
       return res.status(200).json({
         status: 'success',
@@ -162,7 +161,7 @@ class PlaylistsHandler {
 
   async getActivities(req, res) {
     try {
-      const activities = await this.playlistsService.getActivities(req.params.id, req.auth.userId);
+      const activities = await this._playlistsService.getActivities(req.params.id, req.auth.userId);
       return res.status(200).json({
         status: 'success',
         data: {
@@ -186,9 +185,11 @@ class PlaylistsHandler {
 
   async postExportPlaylist(req, res) {
     try {
-      const { id } = req.params; // playlistId
-      const { targetEmail } = req.body || {};
-      const userId = req.user && req.user.id;
+      const {
+        params: { id },
+        body: { targetEmail } = {},
+        auth: { userId },
+      } = req;
 
       if (!targetEmail || typeof targetEmail !== 'string') {
         return res.status(400).json({
@@ -197,11 +198,8 @@ class PlaylistsHandler {
         });
       }
 
-      // Verifikasi bahwa user adalah pemilik playlist
-      await this._service.verifyPlaylistOwner(id, userId);
-
-      // Kirim ke RabbitMQ (producer)
-      await this._service.exportPlaylist(id, targetEmail);
+      await this._playlistsService.verifyPlaylistOwner(id, userId);
+      await this._playlistsService.exportPlaylist(id, targetEmail);
 
       return res.status(201).json({
         status: 'success',

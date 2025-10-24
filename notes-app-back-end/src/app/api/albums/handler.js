@@ -24,8 +24,7 @@ class AlbumsHandler {
   // POST /albums
   async postAlbumHandler(req, res) {
     try {
-      // Call validateAlbum function directly
-      validateAlbum(req.body); // Validate the album data using the validator function
+      validateAlbum(req.body);
 
       const albumId = await this._service.addAlbum(req.body);
       return res.status(201).json({
@@ -33,7 +32,6 @@ class AlbumsHandler {
         data: { albumId },
       });
     } catch (error) {
-      console.error('postAlbumHandler error:', error);
       if (error instanceof ClientError) {
         return res.status(error.statusCode).json({
           status: 'fail',
@@ -49,13 +47,11 @@ class AlbumsHandler {
   }
 
   // GET /albums/{id}
-  // GET /albums/{id}
   async getAlbumByIdHandler(req, res) {
     try {
       const { id } = req.params;
       const album = await this._service.getAlbumById(id);
 
-      // PERBAIKAN: Cek jika album null/tidak ditemukan
       if (!album) {
         return res.status(404).json({
           status: 'fail',
@@ -63,7 +59,6 @@ class AlbumsHandler {
         });
       }
 
-      // PERBAIKAN: Tidak perlu memanggil songsService lagi karena sudah termasuk di service
       return res.status(200).json({
         status: 'success',
         data: {
@@ -72,12 +67,11 @@ class AlbumsHandler {
             name: album.name,
             year: album.year,
             coverUrl: album.coverUrl,
-            songs: album.songs, // Gunakan songs dari service
+            songs: album.songs,
           },
         },
       });
     } catch (error) {
-      console.error('getAlbumByIdHandler error:', error);
       return res.status(500).json({
         status: 'error',
         message: 'Terjadi kesalahan pada server',
@@ -86,16 +80,13 @@ class AlbumsHandler {
   }
 
   // PUT /albums/{id}
-  // PUT /albums/{id}
   async putAlbumByIdHandler(req, res) {
     try {
       const { id } = req.params;
       const { name, year } = req.body;
 
-      // Validate album data
       validateAlbum(req.body);
 
-      // PERBAIKAN: Cek jika album exists dengan cara yang sama seperti GET
       const albumExists = await this._service.getAlbumById(id);
       if (!albumExists) {
         return res.status(404).json({
@@ -104,7 +95,6 @@ class AlbumsHandler {
         });
       }
 
-      // Perform update
       await this._service.editAlbumById(id, { name, year });
 
       return res.status(200).json({
@@ -112,7 +102,6 @@ class AlbumsHandler {
         message: 'Album berhasil diperbarui',
       });
     } catch (error) {
-      console.error('putAlbumByIdHandler error:', error);
       if (error instanceof ClientError) {
         return res.status(error.statusCode).json({
           status: 'fail',
@@ -132,13 +121,11 @@ class AlbumsHandler {
     try {
       const { id } = req.params;
 
-      // Check if the album exists before deletion
       const albumExists = await this._service.getAlbumById(id);
       if (!albumExists) {
         throw new NotFoundError('Album not found for deletion');
       }
 
-      // Perform deletion
       await this._service.deleteAlbumById(id);
 
       return res.status(200).json({
@@ -146,7 +133,6 @@ class AlbumsHandler {
         message: 'Album successfully deleted',
       });
     } catch (error) {
-      console.error('deleteAlbumByIdHandler error:', error);
       if (error instanceof NotFoundError) {
         return res.status(error.statusCode).json({
           status: 'fail',
@@ -173,24 +159,20 @@ class AlbumsHandler {
 
       const { size, mimetype, originalname, path: tempPath } = file;
 
-      // Validasi ukuran file
       if (size > 512000) {
         fs.unlinkSync(tempPath);
         throw new ClientError('Ukuran file maksimal 512KB', 400);
       }
 
-      // Validasi tipe file
       if (!mimetype.startsWith('image/')) {
         fs.unlinkSync(tempPath);
         throw new ClientError('File harus berupa gambar', 400);
       }
 
-      // Simpan file ke folder uploads
       const newFileName = `${id}-${Date.now()}${path.extname(originalname)}`;
       const newPath = path.join('uploads', newFileName);
       fs.renameSync(tempPath, newPath);
 
-      // Simpan URL ke database
       const serverUrl = process.env.SERVER_URL || '';
       const coverUrl = `${serverUrl}/uploads/${newFileName}`;
 
@@ -202,8 +184,6 @@ class AlbumsHandler {
         coverUrl,
       });
     } catch (e) {
-      console.error('Error in postUploadCover:', e);
-
       if (e instanceof ClientError) {
         return res.status(e.statusCode || 400).json({
           status: 'fail',
@@ -229,7 +209,6 @@ class AlbumsHandler {
       if (e.message.includes('sudah menyukai')) {
         return res.status(400).json({ status: 'fail', message: e.message });
       }
-      console.error(e);
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan server' });
     }
   }
@@ -242,7 +221,6 @@ class AlbumsHandler {
       await this._likesService.unlikeAlbum(albumId, userId);
       return res.status(200).json({ status: 'success', message: 'Batal menyukai album' });
     } catch (e) {
-      console.error(e);
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan server' });
     }
   }
@@ -261,7 +239,6 @@ class AlbumsHandler {
           data: { likes: result.count },
         });
     } catch (e) {
-      console.error(e);
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan server' });
     }
   }
