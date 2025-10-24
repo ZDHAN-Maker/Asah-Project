@@ -23,7 +23,9 @@ class SongsHandler {
       return res.status(201).json({
         status: 'success',
         message: 'Lagu berhasil ditambahkan',
-        data: { songId },
+        data: {
+          songId,
+        },
       });
     } catch (error) {
       if (error instanceof ClientError) {
@@ -72,20 +74,19 @@ class SongsHandler {
     try {
       const { id } = req.params;
       const song = await this._service.getSongById(id);
+      const responseSong = {
+        id: song.id,
+        title: song.title,
+        year: song.year,
+        performer: song.performer,
+        genre: song.genre || null,
+        duration: song.duration || null,
+        albumId: song.albumId || null,
+      };
 
       return res.status(200).json({
         status: 'success',
-        data: {
-          song: {
-            id: song.id,
-            title: song.title,
-            year: song.year,
-            performer: song.performer,
-            genre: song.genre || null,
-            duration: song.duration || null,
-            albumId: song.albumId || null,
-          },
-        },
+        data: { song: responseSong },
       });
     } catch (error) {
       if (error instanceof ClientError) {
@@ -104,17 +105,31 @@ class SongsHandler {
 
   async putSongByIdHandler(req, res) {
     try {
-      this._validator.validateSong(req.body); // Validasi input
+      this._validator.validateSong(req.body); // Validasi data yang dikirim
       const { id } = req.params;
 
-      // Update lagu, sekaligus memastikan lagu ada
+      // Pastikan lagu ada sebelum diperbarui
+      const song = await this._service.getSongById(id);
+
+      if (!song) {
+        return res.status(404).json({
+          status: 'fail',
+          message: 'Lagu tidak ditemukan',
+        });
+      }
+
+      // Perbarui lagu
       const updatedSongId = await this._service.updateSongById(id, req.body);
+
+      // Ambil data lagu yang telah diperbarui
       const updatedSong = await this._service.getSongById(updatedSongId);
 
       return res.status(200).json({
         status: 'success',
         message: 'Lagu berhasil diperbarui',
-        data: { song: updatedSong },
+        data: {
+          song: updatedSong, // Kembalikan data lagu yang sudah diperbarui
+        },
       });
     } catch (error) {
       if (error instanceof NotFoundError) {
