@@ -201,7 +201,6 @@ class AlbumsHandler {
       const { id: albumId } = req.params;
       const result = await this._likesService.getLikesCount(albumId);
       const headers = result.fromCache ? { 'X-Data-Source': 'cache' } : {};
-
       return res
         .status(200)
         .set(headers)
@@ -209,7 +208,10 @@ class AlbumsHandler {
           status: 'success',
           data: { likes: result.count },
         });
-    } catch {
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({ status: 'fail', message: error.message });
+      }
       return res.status(500).json({
         status: 'error',
         message: 'Terjadi kesalahan server',
