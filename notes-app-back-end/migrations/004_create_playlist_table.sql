@@ -1,6 +1,6 @@
-CREATE TABLE playlists (
-    id TEXT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    owner TEXT,
-    FOREIGN KEY (owner) REFERENCES users(id) ON DELETE SET NULL
+CREATE TABLE IF NOT EXISTS playlists (
+  id TEXT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  owner TEXT NOT NULL,
+  FOREIGN KEY (owner) REFERENCES users(id) ON DELETE CASCADE
 );
