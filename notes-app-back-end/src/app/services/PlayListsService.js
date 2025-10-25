@@ -1,6 +1,6 @@
-// src/services/PlayListsService.js
 const { nanoid } = require('nanoid');
 const { Pool } = require('pg');
+const amqp = require('amqplib');
 require('dotenv').config();
 
 const NotFoundError = require('../utils/error/NotFoundError');
@@ -15,8 +15,50 @@ const pool = new Pool({
 class PlaylistsService {
   constructor(collaborationsService) {
     this._collaborationsService = collaborationsService;
+    this._amqpConn = null;
+    this._channel = null;
   }
 
+  // Function to connect to RabbitMQ
+  async connectToRabbitMQ() {
+    try {
+      const rabbitUrl = process.env.RABBITMQ_URL || 'amqp://localhost';
+      this._amqpConn = await amqp.connect(rabbitUrl);
+      this._channel = await this._amqpConn.createChannel();
+
+      await this._channel.assertQueue('export:playlists', {
+        durable: true, // Ensure the queue survives server restarts
+      });
+    } catch (error) {
+      console.error('Error connecting to RabbitMQ:', error);
+      throw new ClientError('Failed to connect to RabbitMQ');
+    }
+  }
+
+  // Function to send the export playlist request to the queue
+  async exportPlaylist(playlistId) {
+    try {
+      // Ensure the RabbitMQ connection is active
+      if (!this._channel) {
+        await this.connectToRabbitMQ(); // Connect if not already connected
+      }
+
+      // Prepare the message payload
+      const payload = { playlistId };
+
+      // Publish the export request to the queue
+      await this._channel.sendToQueue('export:playlists', Buffer.from(JSON.stringify(payload)), {
+        persistent: true, // Ensures that the message is saved to disk if the server crashes
+      });
+
+      console.log(`Playlist export request for ${playlistId} sent to the queue`);
+    } catch (error) {
+      console.error('Error in exportPlaylist:', error);
+      throw new ClientError('Failed to initiate playlist export');
+    }
+  }
+
+  // Function to verify playlist owner
   async verifyPlaylistOwner(playlistId, ownerId) {
     try {
       const result = await pool.query('SELECT owner FROM playlists WHERE id = $1', [playlistId]);
@@ -34,6 +76,7 @@ class PlaylistsService {
     }
   }
 
+  // Function to verify playlist access (both owner and collaborator)
   async verifyPlaylistAccess(playlistId, userId) {
     try {
       await this.verifyPlaylistOwner(playlistId, userId);
@@ -51,6 +94,7 @@ class PlaylistsService {
     }
   }
 
+  // Function to create a new playlist
   async create({ name, owner }) {
     try {
       if (!name || !owner) throw new InvariantError('Name and owner are required');
@@ -70,6 +114,7 @@ class PlaylistsService {
     }
   }
 
+  // Function to get playlists for a user (either owned or collaborated)
   async getForUser(userId) {
     try {
       const query = `
@@ -88,6 +133,7 @@ class PlaylistsService {
     }
   }
 
+  // Function to delete a playlist
   async delete(playlistId, userId) {
     try {
       const check = await pool.query('SELECT owner FROM playlists WHERE id = $1', [playlistId]);
@@ -101,7 +147,6 @@ class PlaylistsService {
       try {
         await client.query('BEGIN');
 
-        // Hapus aktivitas (sesuaikan nama tabel dengan DB: playlist_song_activities)
         await client.query('DELETE FROM playlist_song_activities WHERE playlist_id = $1', [
           playlistId,
         ]);
@@ -130,6 +175,7 @@ class PlaylistsService {
     }
   }
 
+  // Function to add a song to a playlist
   async addSong(playlistId, songId, userId) {
     try {
       await this.verifyPlaylistAccess(playlistId, userId);
@@ -168,6 +214,7 @@ class PlaylistsService {
     }
   }
 
+  // Function to get songs from a playlist
   async getSongs(playlistId, userId) {
     try {
       const metaQ = `
@@ -207,6 +254,7 @@ class PlaylistsService {
     }
   }
 
+  // Function to delete a song from a playlist
   async deleteSong(playlistId, songId, userId) {
     try {
       await this.verifyPlaylistAccess(playlistId, userId);
@@ -237,6 +285,7 @@ class PlaylistsService {
     }
   }
 
+  // Function to get the activities of a playlist (song add/delete)
   async getActivities(playlistId, userId) {
     try {
       await this.verifyPlaylistAccess(playlistId, userId);

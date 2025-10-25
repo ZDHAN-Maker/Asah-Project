@@ -195,43 +195,31 @@ class PlaylistsHandler {
   // Fungsi untuk mengekspor playlist
   async postExportPlaylist(req, res) {
     try {
-      const {
-        params: { id },
-        body: { targetEmail } = {},
-        auth: { userId },
-      } = req;
+      const playlistId = req.params.id;
+      const userId = req.auth;
 
-      if (!targetEmail || typeof targetEmail !== 'string') {
-        return res.status(400).json({
-          status: 'fail',
-          message: 'targetEmail is required',
-        });
-      }
+      await this._playlistsService.verifyPlaylistAccess(playlistId, userId);
+      await this._playlistsService.exportPlaylist(playlistId);
 
-      await this._playlistsService.verifyPlaylistOwner(id, userId);
-      await this._playlistsService.exportPlaylist(id, targetEmail);
-
-      return res.status(201).json({
-        status: 'success', // Respons status 'success' untuk berhasil
-        message: 'Permintaan Anda sedang kami proses',
+      return res.status(200).json({
+        status: 'success',
+        message: 'Playlist export initiated successfully',
       });
     } catch (e) {
-      if (e instanceof ClientError) {
-        return res.status(e.statusCode || 400).json({
-          status: 'fail',
-          message: e.message,
-        });
-      }
-      if (e instanceof AuthorizationError) {
-        return res.status(403).json({ status: 'fail', message: e.message });
-      }
       if (e instanceof NotFoundError) {
         return res.status(404).json({ status: 'fail', message: e.message });
       }
-      return res.status(500).json({
-        status: 'error',
-        message: 'Terjadi kesalahan pada server',
-      });
+
+      if (e instanceof AuthorizationError) {
+        return res.status(403).json({ status: 'fail', message: e.message });
+      }
+
+      if (e instanceof ClientError || e instanceof InvariantError) {
+        return res.status(400).json({ status: 'fail', message: e.message });
+      }
+
+      // General server error
+      return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
 }
