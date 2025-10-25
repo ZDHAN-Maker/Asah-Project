@@ -37,7 +37,6 @@ class PlaylistsHandler {
         return res.status(e.statusCode || 400).json({ status: 'fail', message: e.message });
       }
 
-      console.error('Unexpected error in postPlaylist:', e);
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
@@ -69,7 +68,6 @@ class PlaylistsHandler {
         return res.status(400).json({ status: 'fail', message: e.message });
       }
 
-      console.error('Unexpected error in postSong handler:', e);
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
@@ -84,7 +82,6 @@ class PlaylistsHandler {
         data: { playlists },
       });
     } catch (e) {
-      console.error('Unexpected error in getPlaylists:', e);
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
@@ -112,7 +109,6 @@ class PlaylistsHandler {
         return res.status(400).json({ status: 'fail', message: e.message });
       }
 
-      console.error('Unexpected error in deletePlaylist:', e);
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
@@ -146,7 +142,6 @@ class PlaylistsHandler {
         return res.status(400).json({ status: 'fail', message: e.message });
       }
 
-      console.error('Unexpected error in deleteSong handler:', e);
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
@@ -169,7 +164,6 @@ class PlaylistsHandler {
         return res.status(403).json({ status: 'fail', message: e.message });
       }
 
-      console.error('Unexpected error in getSongs handler:', e);
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
@@ -194,7 +188,6 @@ class PlaylistsHandler {
         return res.status(403).json({ status: 'fail', message: e.message });
       }
 
-      console.error('Unexpected error in getActivities:', e);
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }
@@ -235,7 +228,6 @@ class PlaylistsHandler {
       if (e instanceof NotFoundError) {
         return res.status(404).json({ status: 'fail', message: e.message });
       }
-      console.error('postExportPlaylist error:', e);
       return res.status(500).json({
         status: 'error',
         message: 'Terjadi kesalahan pada server',
