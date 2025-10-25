@@ -1,5 +1,4 @@
-const fs = require('fs');
-const path = require('path');
+const multer = require('multer');
 const ClientError = require('../../utils/error/ClientError');
 const NotFoundError = require('../../utils/error/NotFoundError');
 const validateAlbum = require('./validator');
@@ -10,7 +9,7 @@ class AlbumsHandler {
     this._songsService = songsService;
     this._likesService = likesService;
 
-    // Bind the handler methods
+    // Bind methods
     this.postAlbumHandler = this.postAlbumHandler.bind(this);
     this.getAlbumByIdHandler = this.getAlbumByIdHandler.bind(this);
     this.putAlbumByIdHandler = this.putAlbumByIdHandler.bind(this);
@@ -21,12 +20,13 @@ class AlbumsHandler {
     this.getAlbumLikes = this.getAlbumLikes.bind(this);
   }
 
-  // POST /albums
+  // === POST /albums ===
   async postAlbumHandler(req, res) {
     try {
-      validateAlbum(req.body);
+      const { body } = req;
+      validateAlbum(body);
 
-      const albumId = await this._service.addAlbum(req.body);
+      const albumId = await this._service.addAlbum(body);
       return res.status(201).json({
         status: 'success',
         data: { albumId },
@@ -38,7 +38,6 @@ class AlbumsHandler {
           message: error.message,
         });
       }
-
       return res.status(500).json({
         status: 'error',
         message: 'Terjadi kesalahan pada server',
@@ -46,7 +45,7 @@ class AlbumsHandler {
     }
   }
 
-  // GET /albums/{id}
+  // === GET /albums/{id} ===
   async getAlbumByIdHandler(req, res) {
     try {
       const { id } = req.params;
@@ -59,19 +58,12 @@ class AlbumsHandler {
         });
       }
 
+      const { name, year, coverUrl, songs } = album;
       return res.status(200).json({
         status: 'success',
-        data: {
-          album: {
-            id: album.id,
-            name: album.name,
-            year: album.year,
-            coverUrl: album.coverUrl,
-            songs: album.songs,
-          },
-        },
+        data: { album: { id, name, year, coverUrl, songs } },
       });
-    } catch (error) {
+    } catch {
       return res.status(500).json({
         status: 'error',
         message: 'Terjadi kesalahan pada server',
@@ -79,7 +71,7 @@ class AlbumsHandler {
     }
   }
 
-  // PUT /albums/{id}
+  // === PUT /albums/{id} ===
   async putAlbumByIdHandler(req, res) {
     try {
       const { id } = req.params;
@@ -96,7 +88,6 @@ class AlbumsHandler {
       }
 
       await this._service.editAlbumById(id, { name, year });
-
       return res.status(200).json({
         status: 'success',
         message: 'Album berhasil diperbarui',
@@ -108,7 +99,6 @@ class AlbumsHandler {
           message: error.message,
         });
       }
-
       return res.status(500).json({
         status: 'error',
         message: 'Terjadi kesalahan server saat memperbarui album',
@@ -116,21 +106,18 @@ class AlbumsHandler {
     }
   }
 
-  // DELETE /albums/{id}
+  // === DELETE /albums/{id} ===
   async deleteAlbumByIdHandler(req, res) {
     try {
       const { id } = req.params;
-
       const albumExists = await this._service.getAlbumById(id);
-      if (!albumExists) {
-        throw new NotFoundError('Album not found for deletion');
-      }
+
+      if (!albumExists) throw new NotFoundError('Album tidak ditemukan untuk dihapus');
 
       await this._service.deleteAlbumById(id);
-
       return res.status(200).json({
         status: 'success',
-        message: 'Album successfully deleted',
+        message: 'Album berhasil dihapus',
       });
     } catch (error) {
       if (error instanceof NotFoundError) {
@@ -139,58 +126,64 @@ class AlbumsHandler {
           message: error.message,
         });
       }
-
       return res.status(500).json({
         status: 'error',
-        message: 'Server error occurred while deleting the album',
+        message: 'Terjadi kesalahan server saat menghapus album',
       });
     }
   }
 
-  // POST /albums/{id}/cover
+  // === POST /albums/{id}/covers ===
   async postUploadCover(req, res) {
     try {
       const { id } = req.params;
       const { file } = req;
 
-      if (!file) {
-        throw new ClientError('File tidak ditemukan', 400);
-      }
+      if (!file) throw new ClientError('File tidak ditemukan');
+      if (!file.mimetype.startsWith('image/')) throw new ClientError('Hanya file gambar yang diperbolehkan');
 
-      const { size, mimetype, originalname, path: tempPath } = file;
-
-      if (size > 512000) {
-        fs.unlinkSync(tempPath);
-        throw new ClientError('Ukuran file maksimal 512KB', 400);
-      }
-
-      if (!mimetype.startsWith('image/')) {
-        fs.unlinkSync(tempPath);
-        throw new ClientError('File harus berupa gambar', 400);
-      }
-
-      const newFileName = `${id}-${Date.now()}${path.extname(originalname)}`;
-      const newPath = path.join('uploads', newFileName);
-      fs.renameSync(tempPath, newPath);
-
-      const serverUrl = process.env.SERVER_URL || '';
-      const coverUrl = `${serverUrl}/uploads/${newFileName}`;
-
-      await this._service.updateCoverUrl(id, coverUrl);
-
+      await this._service.addCoverToAlbum(id, file.filename);
       return res.status(201).json({
         status: 'success',
         message: 'Sampul berhasil diunggah',
-        coverUrl,
       });
-    } catch (e) {
-      if (e instanceof ClientError) {
-        return res.status(e.statusCode || 400).json({
+    } catch (error) {
+      if (error instanceof multer.MulterError) {
+        const message = error.code === 'LIMIT_FILE_SIZE'
+          ? 'Ukuran file maksimal 512KB'
+          : 'Gagal mengunggah file';
+        return res.status(400).json({
           status: 'fail',
-          message: e.message,
+          message,
         });
       }
+      const status = error instanceof ClientError ? 400 : 500;
+      const message = error instanceof ClientError ? error.message : 'Gagal mengunggah sampul';
+      return res.status(status).json({
+        status: 'fail',
+        message,
+      });
+    }
+  }
 
+  // === POST /albums/{id}/likes ===
+  async postLikeAlbum(req, res) {
+    try {
+      const { id: albumId } = req.params;
+      const { id: userId } = req.user;
+
+      await this._likesService.likeAlbum(albumId, userId);
+      return res.status(201).json({
+        status: 'success',
+        message: 'Album disukai',
+      });
+    } catch (error) {
+      if (error.message.includes('sudah menyukai')) {
+        return res.status(400).json({
+          status: 'fail',
+          message: error.message,
+        });
+      }
       return res.status(500).json({
         status: 'error',
         message: 'Terjadi kesalahan server',
@@ -198,48 +191,41 @@ class AlbumsHandler {
     }
   }
 
-  // Menyukai album
-  async postLikeAlbum(req, res) {
-    try {
-      const { id: albumId } = req.params;
-      const userId = req.user.id;
-      await this._likesService.likeAlbum(albumId, userId);
-      return res.status(201).json({ status: 'success', message: 'Album disukai' });
-    } catch (e) {
-      if (e.message.includes('sudah menyukai')) {
-        return res.status(400).json({ status: 'fail', message: e.message });
-      }
-      return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan server' });
-    }
-  }
-
-  // Batal menyukai album
+  // === DELETE /albums/{id}/likes ===
   async deleteLikeAlbum(req, res) {
     try {
       const { id: albumId } = req.params;
-      const userId = req.user.id;
+      const { id: userId } = req.user;
+
       await this._likesService.unlikeAlbum(albumId, userId);
-      return res.status(200).json({ status: 'success', message: 'Batal menyukai album' });
-    } catch (e) {
-      return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan server' });
+      return res.status(200).json({
+        status: 'success',
+        message: 'Batal menyukai album',
+      });
+    } catch {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Terjadi kesalahan server',
+      });
     }
   }
 
-  // Mendapatkan jumlah yang menyukai album
+  // === GET /albums/{id}/likes ===
   async getAlbumLikes(req, res) {
     try {
       const { id: albumId } = req.params;
       const result = await this._likesService.getLikesCount(albumId);
       const headers = result.fromCache ? { 'X-Data-Source': 'cache' } : {};
-      return res
-        .status(200)
-        .set(headers)
-        .json({
-          status: 'success',
-          data: { likes: result.count },
-        });
-    } catch (e) {
-      return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan server' });
+
+      return res.status(200).set(headers).json({
+        status: 'success',
+        data: { likes: result.count },
+      });
+    } catch {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Terjadi kesalahan server',
+      });
     }
   }
 }
