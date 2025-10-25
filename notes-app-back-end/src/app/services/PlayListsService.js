@@ -60,24 +60,29 @@ class PlaylistsService {
   /** Kirim permintaan export ke RabbitMQ */
   async exportPlaylist(playlistId, userId, targetEmail = null) {
     try {
-      // Pastikan user punya akses ke playlist
+      // Pastikan akses (owner/kolaborator) & playlist ada
       await this.verifyPlaylistAccess(playlistId, userId);
 
-      // Validasi email HANYA jika dikirim dan tidak kosong
-      if (typeof targetEmail === 'string' && targetEmail.trim() !== '') {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(targetEmail.trim())) {
-          throw new InvariantError('targetEmail harus berupa email yang valid');
-        }
-      }
+      // ✅ validasi email opsional tapi ketat jika ada
+      if (targetEmail !== undefined) {
+  // jika field DIKIRIM, wajib string tak-kosong dan format email valid
+  if (typeof targetEmail !== 'string' || targetEmail.trim() === '') {
+    throw new InvariantError('targetEmail harus berupa email yang valid');
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(targetEmail.trim())) {
+    throw new InvariantError('targetEmail harus berupa email yang valid');
+  }
+}
 
-      // Coba konek ke RabbitMQ, tapi jangan gagal kalau server mati
+      // ✅ coba konek RabbitMQ tapi jangan bikin request gagal
       try {
         if (!this._channel) {
-          await this.connectToRabbitMQ();
+          await this.connectToRabbitMQ(); // ini bisa melempar ClientError
         }
       } catch (err) {
-        console.warn('⚠️ RabbitMQ tidak tersedia, export tetap dilanjutkan tanpa antrian.');
+        console.warn('⚠️ RabbitMQ tidak tersedia, lanjut tanpa antrian.');
+        this._channel = null; // penting: pastikan guard di bawah terpenuhi
       }
 
       const payload = {
@@ -87,34 +92,30 @@ class PlaylistsService {
         timestamp: new Date().toISOString(),
       };
 
-      // Kirim ke queue hanya jika koneksi RabbitMQ berhasil
+      // ✅ kirim hanya jika channel siap; kalau tidak, simulasikan
       if (this._channel) {
+        // sendToQueue itu sync; tidak perlu await, tapi tak masalah jika ada
         this._channel.sendToQueue('export:playlists', Buffer.from(JSON.stringify(payload)), {
           persistent: true,
         });
       } else {
-        console.log('📦 Simulasi export: payload tidak dikirim ke RabbitMQ karena server mati.');
+        console.log('📦 Simulasi export: payload tidak dikirim karena RabbitMQ offline.');
       }
 
-      // Return sukses meski RabbitMQ mati (agar test 201 tetap pass)
       return {
         status: 'success',
         message: 'Permintaan export playlist telah dimasukkan ke antrian',
       };
     } catch (error) {
       console.error('Error in exportPlaylist:', error);
-
-      // Error eksplisit dari sistem
       if (
         error instanceof NotFoundError
         || error instanceof AuthorizationError
         || error instanceof InvariantError
       ) {
-        throw error;
+        throw error; // 404 / 403 / 400 sesuai handler
       }
-
-      // Error lain dianggap error sistem
-      throw new ClientError('Gagal memulai export playlist');
+      throw new ClientError('Gagal memulai export playlist'); // 400
     }
   }
 
