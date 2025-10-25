@@ -48,14 +48,21 @@ class PlaylistsHandler {
         return res.status(400).json({ status: 'fail', message: 'Invalid payload' });
       }
 
+      // Pastikan payload memiliki struktur yang benar
+      if (!req.body.songId) {
+        return res.status(400).json({ status: 'fail', message: 'songId is required' });
+      }
+
       validateSongPayload(req.body);
       await this._playlistsService.addSong(req.params.id, req.body.songId, req.auth.userId);
 
       return res.status(201).json({
-        status: 'success', // Respons status 'success' untuk berhasil
+        status: 'success',
         message: 'Lagu berhasil ditambahkan ke playlist',
       });
     } catch (e) {
+      console.error('Error in postSong:', e.message); // Log error untuk debugging
+
       if (e instanceof NotFoundError) {
         return res.status(404).json({ status: 'fail', message: e.message });
       }
@@ -92,11 +99,12 @@ class PlaylistsHandler {
       await this._playlistsService.delete(req.params.id, req.auth.userId);
 
       return res.status(200).json({
-        // Respons status 'success' untuk berhasil
         status: 'success',
         message: 'Playlist berhasil dihapus',
       });
     } catch (e) {
+      console.error('Error in deletePlaylist:', e.message); // Log error untuk debugging
+
       if (e instanceof NotFoundError) {
         return res.status(404).json({ status: 'fail', message: e.message });
       }
@@ -109,7 +117,7 @@ class PlaylistsHandler {
         return res.status(400).json({ status: 'fail', message: e.message });
       }
 
-      return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
+      return res.status(500).json({ status: 'error', message: 'Terjali kesalahan pada server' });
     }
   }
 
@@ -120,16 +128,23 @@ class PlaylistsHandler {
         return res.status(400).json({ status: 'fail', message: 'Invalid payload' });
       }
 
+      // Pastikan payload memiliki songId
+      if (!req.body.songId) {
+        return res.status(400).json({ status: 'fail', message: 'songId is required' });
+      }
+
       validateSongPayload(req.body);
       const { songId } = req.body;
 
       await this._playlistsService.deleteSong(req.params.id, songId, req.auth.userId);
 
       return res.status(200).json({
-        status: 'success', // Respons status 'success' untuk berhasil
+        status: 'success',
         message: 'Lagu berhasil dihapus dari playlist',
       });
     } catch (e) {
+      console.error('Error in deleteSong:', e.message); // Log error untuk debugging
+
       if (e instanceof NotFoundError) {
         return res.status(404).json({ status: 'fail', message: e.message });
       }

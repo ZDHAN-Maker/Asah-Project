@@ -147,6 +147,7 @@ class PlaylistsService {
     } catch (error) {
       if (error instanceof NotFoundError) throw error;
       if (error instanceof AuthorizationError) {
+        // Check if user is collaborator
         try {
           await this._collaborationsService.verifyCollaborator(playlistId, userId);
         } catch (collabErr) {
@@ -170,6 +171,11 @@ class PlaylistsService {
       };
 
       const result = await pool.query(query);
+
+      if (!result.rows[0]) {
+        throw new InvariantError('Gagal membuat playlist');
+      }
+
       return result.rows[0].id;
     } catch (error) {
       console.error('Error in create playlist:', error);
@@ -199,43 +205,44 @@ class PlaylistsService {
 
   // Function to delete a playlist
   async delete(playlistId, userId) {
+    const client = await pool.connect();
     try {
-      const check = await pool.query('SELECT owner FROM playlists WHERE id = $1', [playlistId]);
+      await client.query('BEGIN');
+
+      // Verifikasi playlist exists dan user memiliki akses
+      const check = await client.query('SELECT owner FROM playlists WHERE id = $1', [playlistId]);
 
       if (!check.rowCount) throw new NotFoundError('Playlist tidak ditemukan');
-      if (check.rows[0].owner !== userId) {
-        throw new AuthorizationError('Anda tidak berhak mengakses playlist ini');
-      }
 
-      const client = await pool.connect();
-      try {
-        await client.query('BEGIN');
+      // Gunakan verifyPlaylistAccess untuk mengecek baik owner maupun collaborator
+      await this.verifyPlaylistAccess(playlistId, userId);
 
-        await client.query('DELETE FROM playlist_song_activities WHERE playlist_id = $1', [
-          playlistId,
-        ]);
-        await client.query('DELETE FROM playlist_songs WHERE playlist_id = $1', [playlistId]);
-        await client.query('DELETE FROM collaborations WHERE playlist_id = $1', [playlistId]);
+      // Hapus data terkait
+      await client.query('DELETE FROM playlist_song_activities WHERE playlist_id = $1', [
+        playlistId,
+      ]);
+      await client.query('DELETE FROM playlist_songs WHERE playlist_id = $1', [playlistId]);
+      await client.query('DELETE FROM collaborations WHERE playlist_id = $1', [playlistId]);
 
-        const delRes = await client.query('DELETE FROM playlists WHERE id = $1 RETURNING id', [
-          playlistId,
-        ]);
-        if (!delRes.rowCount) {
-          await client.query('ROLLBACK');
-          throw new NotFoundError('Playlist tidak ditemukan saat penghapusan');
-        }
+      const delRes = await client.query('DELETE FROM playlists WHERE id = $1 RETURNING id', [
+        playlistId,
+      ]);
 
-        await client.query('COMMIT');
-      } catch (err) {
+      if (!delRes.rowCount) {
         await client.query('ROLLBACK');
-        throw err;
-      } finally {
-        client.release();
+        throw new NotFoundError('Playlist tidak ditemukan saat penghapusan');
       }
+
+      await client.query('COMMIT');
+      return delRes.rows[0].id;
     } catch (error) {
+      await client.query('ROLLBACK');
       console.error('Error in delete playlist:', error);
+
       if (error instanceof ClientError) throw error;
       throw new ClientError('Gagal menghapus playlist');
+    } finally {
+      client.release();
     }
   }
 
