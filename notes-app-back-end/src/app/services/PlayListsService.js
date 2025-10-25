@@ -1,4 +1,4 @@
-// src/services/PlaylistsService.js
+// src/services/PlayListsService.js
 const { nanoid } = require('nanoid');
 const { Pool } = require('pg');
 require('dotenv').config();
@@ -9,7 +9,7 @@ const AuthorizationError = require('../utils/error/AuthorizationError');
 const InvariantError = require('../utils/error/InvariantError');
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL || undefined,
 });
 
 class PlaylistsService {
@@ -28,9 +28,7 @@ class PlaylistsService {
         throw new AuthorizationError('Anda tidak berhak mengakses resource ini');
       }
     } catch (error) {
-      if (error instanceof ClientError) {
-        throw error;
-      }
+      if (error instanceof ClientError) throw error;
       console.error('Error in verifyPlaylistOwner:', error);
       throw new ClientError('Terjadi kesalahan saat memverifikasi playlist');
     }
@@ -40,15 +38,11 @@ class PlaylistsService {
     try {
       await this.verifyPlaylistOwner(playlistId, userId);
     } catch (error) {
-      if (error instanceof NotFoundError) {
-        throw error;
-      }
+      if (error instanceof NotFoundError) throw error;
       if (error instanceof AuthorizationError) {
-        // cek kolaborator jika bukan owner
         try {
           await this._collaborationsService.verifyCollaborator(playlistId, userId);
         } catch (collabErr) {
-          // kalau kolaborator juga gagal -> tolak akses
           throw new AuthorizationError('Anda tidak memiliki akses ke playlist ini');
         }
       } else {
@@ -59,9 +53,7 @@ class PlaylistsService {
 
   async create({ name, owner }) {
     try {
-      if (!name || !owner) {
-        throw new InvariantError('Name and owner are required');
-      }
+      if (!name || !owner) throw new InvariantError('Name and owner are required');
 
       const id = `playlist-${nanoid(16)}`;
       const query = {
@@ -73,14 +65,11 @@ class PlaylistsService {
       return result.rows[0].id;
     } catch (error) {
       console.error('Error in create playlist:', error);
-      if (error instanceof ClientError) {
-        throw error;
-      }
+      if (error instanceof ClientError) throw error;
       throw new ClientError('Gagal membuat playlist');
     }
   }
 
-  // PERBAIKAN: gunakan LEFT JOIN + kondisi OR untuk menghindari duplikasi
   async getForUser(userId) {
     try {
       const query = `
@@ -103,43 +92,40 @@ class PlaylistsService {
     try {
       const check = await pool.query('SELECT owner FROM playlists WHERE id = $1', [playlistId]);
 
-      if (!check.rowCount) {
-        throw new NotFoundError('Playlist tidak ditemukan');
-      }
+      if (!check.rowCount) throw new NotFoundError('Playlist tidak ditemukan');
       if (check.rows[0].owner !== userId) {
         throw new AuthorizationError('Anda tidak berhak mengakses playlist ini');
       }
 
-      // Hapus dalam transaction untuk menjaga konsistensi data
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
 
-        await client.query('DELETE FROM playlist_activities WHERE playlist_id = $1', [playlistId]);
+        // Hapus aktivitas (sesuaikan nama tabel dengan DB: playlist_song_activities)
+        await client.query('DELETE FROM playlist_song_activities WHERE playlist_id = $1', [
+          playlistId,
+        ]);
         await client.query('DELETE FROM playlist_songs WHERE playlist_id = $1', [playlistId]);
         await client.query('DELETE FROM collaborations WHERE playlist_id = $1', [playlistId]);
 
         const delRes = await client.query('DELETE FROM playlists WHERE id = $1 RETURNING id', [
           playlistId,
         ]);
-
         if (!delRes.rowCount) {
           await client.query('ROLLBACK');
           throw new NotFoundError('Playlist tidak ditemukan saat penghapusan');
         }
 
         await client.query('COMMIT');
-      } catch (error) {
+      } catch (err) {
         await client.query('ROLLBACK');
-        throw error;
+        throw err;
       } finally {
         client.release();
       }
     } catch (error) {
       console.error('Error in delete playlist:', error);
-      if (error instanceof ClientError) {
-        throw error;
-      }
+      if (error instanceof ClientError) throw error;
       throw new ClientError('Gagal menghapus playlist');
     }
   }
@@ -148,25 +134,17 @@ class PlaylistsService {
     try {
       await this.verifyPlaylistAccess(playlistId, userId);
 
-      // Validasi songId
-      if (!songId) {
-        throw new InvariantError('songId is required');
-      }
+      if (!songId) throw new InvariantError('songId is required');
 
       const songCheck = await pool.query('SELECT id FROM songs WHERE id = $1', [String(songId)]);
-      if (!songCheck.rowCount) {
-        throw new NotFoundError('Lagu tidak ditemukan');
-      }
+      if (!songCheck.rowCount) throw new NotFoundError('Lagu tidak ditemukan');
 
-      // Cek apakah song sudah ada di playlist
       const existingSong = await pool.query(
         'SELECT id FROM playlist_songs WHERE playlist_id = $1 AND song_id = $2',
         [playlistId, String(songId)]
       );
 
-      if (existingSong.rowCount > 0) {
-        throw new InvariantError('Lagu sudah ada di playlist');
-      }
+      if (existingSong.rowCount > 0) throw new InvariantError('Lagu sudah ada di playlist');
 
       const id = `ps-${nanoid(16)}`;
       const insertRes = await pool.query(
@@ -174,23 +152,18 @@ class PlaylistsService {
         [id, playlistId, String(songId)]
       );
 
-      if (!insertRes.rowCount) {
-        throw new ClientError('Gagal menambahkan lagu ke playlist');
-      }
+      if (!insertRes.rowCount) throw new ClientError('Gagal menambahkan lagu ke playlist');
 
       const actId = `act-${nanoid(16)}`;
       await pool.query(
-        'INSERT INTO playlist_activities (id, playlist_id, song_id, user_id, action, time) VALUES ($1, $2, $3, $4, $5, NOW())',
+        'INSERT INTO playlist_song_activities (id, playlist_id, song_id, user_id, action, time) VALUES ($1, $2, $3, $4, $5, NOW())',
         [actId, playlistId, String(songId), userId, 'add']
       );
 
-      // kembalikan id agar handler/layer atas bisa pakai jika perlu
       return insertRes.rows[0].id;
     } catch (error) {
       console.error('Error in addSong:', error);
-      if (error instanceof ClientError) {
-        throw error;
-      }
+      if (error instanceof ClientError) throw error;
       throw new ClientError('Gagal menambahkan lagu ke playlist');
     }
   }
@@ -204,10 +177,7 @@ class PlaylistsService {
         WHERE p.id = $1
       `;
       const metaRes = await pool.query(metaQ, [playlistId]);
-
-      if (!metaRes.rowCount) {
-        throw new NotFoundError('Playlist tidak ditemukan');
-      }
+      if (!metaRes.rowCount) throw new NotFoundError('Playlist tidak ditemukan');
 
       await this.verifyPlaylistAccess(playlistId, userId);
 
@@ -232,9 +202,7 @@ class PlaylistsService {
       };
     } catch (error) {
       console.error('Error in getSongs:', error);
-      if (error instanceof ClientError) {
-        throw error;
-      }
+      if (error instanceof ClientError) throw error;
       throw new ClientError('Gagal mengambil data songs dari playlist');
     }
   }
@@ -243,37 +211,28 @@ class PlaylistsService {
     try {
       await this.verifyPlaylistAccess(playlistId, userId);
 
-      if (!songId) {
-        throw new InvariantError('songId is required');
-      }
+      if (!songId) throw new InvariantError('songId is required');
 
       const songExist = await pool.query('SELECT id FROM songs WHERE id = $1', [String(songId)]);
-      if (!songExist.rowCount) {
-        throw new NotFoundError('Lagu tidak ditemukan');
-      }
+      if (!songExist.rowCount) throw new NotFoundError('Lagu tidak ditemukan');
 
-      // Cek apakah song ada di playlist dan lakukan delete serta periksa rowCount
       const deleteRes = await pool.query(
         'DELETE FROM playlist_songs WHERE playlist_id = $1 AND song_id = $2 RETURNING id',
         [playlistId, String(songId)]
       );
 
-      if (!deleteRes.rowCount) {
-        throw new NotFoundError('Lagu tidak ditemukan dalam playlist');
-      }
+      if (!deleteRes.rowCount) throw new NotFoundError('Lagu tidak ditemukan dalam playlist');
 
       const actId = `act-${nanoid(16)}`;
       await pool.query(
-        'INSERT INTO playlist_activities (id, playlist_id, song_id, user_id, action, time) VALUES ($1, $2, $3, $4, $5, NOW())',
+        'INSERT INTO playlist_song_activities (id, playlist_id, song_id, user_id, action, time) VALUES ($1, $2, $3, $4, $5, NOW())',
         [actId, playlistId, String(songId), userId, 'delete']
       );
 
       return deleteRes.rows[0].id;
     } catch (error) {
       console.error('Error in deleteSong:', error);
-      if (error instanceof ClientError) {
-        throw error;
-      }
+      if (error instanceof ClientError) throw error;
       throw new ClientError('Gagal menghapus lagu dari playlist');
     }
   }
@@ -284,7 +243,7 @@ class PlaylistsService {
 
       const q = `
         SELECT u.username, s.title, pa.action, pa.time
-        FROM playlist_activities pa
+        FROM playlist_song_activities pa
         JOIN users u ON u.id = pa.user_id
         JOIN songs s ON s.id = pa.song_id
         WHERE pa.playlist_id = $1
@@ -300,9 +259,7 @@ class PlaylistsService {
       }));
     } catch (error) {
       console.error('Error in getActivities:', error);
-      if (error instanceof ClientError) {
-        throw error;
-      }
+      if (error instanceof ClientError) throw error;
       throw new ClientError('Gagal mengambil data aktivitas playlist');
     }
   }
