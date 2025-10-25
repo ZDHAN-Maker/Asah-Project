@@ -35,26 +35,90 @@ class PlaylistsService {
     }
   }
 
-  // Function to send the export playlist request to the queue
-  async exportPlaylist(playlistId) {
+  async close() {
+    if (this._channel) {
+      await this._channel.close();
+    }
+    if (this._amqpConn) {
+      await this._amqpConn.close();
+    }
+  }
+
+  async verifyPlaylistForExport(playlistId, userId) {
     try {
+      // Check if playlist exists
+      const playlistQuery = await pool.query('SELECT id, owner FROM playlists WHERE id = $1', [
+        playlistId,
+      ]);
+
+      if (!playlistQuery.rowCount) {
+        throw new NotFoundError('Playlist tidak ditemukan');
+      }
+
+      // Verify user has access (owner or collaborator)
+      await this.verifyPlaylistAccess(playlistId, userId);
+
+      return playlistQuery.rows[0];
+    } catch (error) {
+      if (error instanceof ClientError) throw error;
+      console.error('Error in verifyPlaylistForExport:', error);
+      throw new ClientError('Terjadi kesalahan saat memverifikasi playlist');
+    }
+  }
+
+  // Function to send the export playlist request to the queue
+  // Function to send the export playlist request to the queue
+  async exportPlaylist(playlistId, userId, targetEmail = null) {
+    try {
+      // Verify playlist access first
+      await this.verifyPlaylistAccess(playlistId, userId);
+
+      // Validate targetEmail if provided
+      if (targetEmail) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(targetEmail)) {
+          throw new InvariantError('targetEmail harus berupa email yang valid');
+        }
+      }
+
       // Ensure the RabbitMQ connection is active
       if (!this._channel) {
-        await this.connectToRabbitMQ(); // Connect if not already connected
+        await this.connectToRabbitMQ();
       }
 
       // Prepare the message payload
-      const payload = { playlistId };
+      const payload = {
+        playlistId,
+        targetEmail,
+        userId, // Tambahkan userId untuk tracking
+        timestamp: new Date().toISOString(),
+      };
 
       // Publish the export request to the queue
       await this._channel.sendToQueue('export:playlists', Buffer.from(JSON.stringify(payload)), {
-        persistent: true, // Ensures that the message is saved to disk if the server crashes
+        persistent: true,
       });
 
-      console.log(`Playlist export request for ${playlistId} sent to the queue`);
+      console.log(`Playlist export request for ${playlistId} sent to the queue by user ${userId}`);
+
+      // Return success response
+      return {
+        status: 'success',
+        message: 'Permintaan export dalam antrian',
+      };
     } catch (error) {
       console.error('Error in exportPlaylist:', error);
-      throw new ClientError('Failed to initiate playlist export');
+
+      // Re-throw specific errors - PERBAIKAN: Tambahkan operator OR yang benar
+      if (error instanceof NotFoundError) {
+        throw error;
+      } else if (error instanceof AuthorizationError) {
+        throw error;
+      } else if (error instanceof InvariantError) {
+        throw error;
+      }
+
+      throw new ClientError('Gagal memulai export playlist');
     }
   }
 

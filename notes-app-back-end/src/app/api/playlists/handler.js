@@ -197,13 +197,13 @@ class PlaylistsHandler {
     try {
       const playlistId = req.params.id;
       const userId = req.auth;
+      const { targetEmail } = req.body; // Ambil dari body
 
-      await this._playlistsService.verifyPlaylistAccess(playlistId, userId);
-      await this._playlistsService.exportPlaylist(playlistId);
+      const result = await this._playlistsService.exportPlaylist(playlistId, userId, targetEmail);
 
-      return res.status(200).json({
+      return res.status(201).json({
         status: 'success',
-        message: 'Playlist export initiated successfully',
+        message: result.message,
       });
     } catch (e) {
       if (e instanceof NotFoundError) {
@@ -214,11 +214,14 @@ class PlaylistsHandler {
         return res.status(403).json({ status: 'fail', message: e.message });
       }
 
-      if (e instanceof ClientError || e instanceof InvariantError) {
+      if (e instanceof InvariantError) {
         return res.status(400).json({ status: 'fail', message: e.message });
       }
 
-      // General server error
+      if (e instanceof ClientError) {
+        return res.status(400).json({ status: 'fail', message: e.message });
+      }
+
       return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan pada server' });
     }
   }

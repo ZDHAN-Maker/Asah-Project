@@ -59,6 +59,7 @@ app.use('/albums', createAlbumsRouter(albumsHandler));
 app.use('/songs', createSongsRouter(songsHandler));
 app.use('/playlists', createPlaylistsRouter(playlistsHandler));
 app.use('/collaborations', createCollaboratorRoute(collaboratorHandler));
+app.use('/export', createPlaylistsRouter(playlistsHandler));
 
 // === SERVER START ===
 const PORT = process.env.PORT || 5000;
