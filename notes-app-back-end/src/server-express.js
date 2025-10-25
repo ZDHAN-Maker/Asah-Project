@@ -57,7 +57,7 @@ app.use('/users', createUsersRouter(usersHandler));
 app.use('/', createUsersRouter(usersHandler));
 app.use('/albums', createAlbumsRouter(albumsHandler));
 app.use('/songs', createSongsRouter(songsHandler));
-app.use('/', createPlaylistsRouter(playlistsHandler));
+app.use('/playlists', createPlaylistsRouter(playlistsHandler));
 app.use('/collaborations', createCollaboratorRoute(collaboratorHandler));
 
 // === SERVER START ===
