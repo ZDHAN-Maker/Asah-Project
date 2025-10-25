@@ -1,3 +1,4 @@
+const path = require('path');
 const multer = require('multer');
 const ClientError = require('../../utils/error/ClientError');
 const NotFoundError = require('../../utils/error/NotFoundError');
@@ -133,44 +134,18 @@ class AlbumsHandler {
     }
   }
 
-  // === POST /albums/{id}/covers ===
-  async postUploadCover(req, res) {
-    try {
-      const { id } = req.params;
-      const { file } = req;
-
-      if (!file) throw new ClientError('File tidak ditemukan');
-      if (!file.mimetype.startsWith('image/')) throw new ClientError('Hanya file gambar yang diperbolehkan');
-
-      await this._service.addCoverToAlbum(id, file.filename);
-      return res.status(201).json({
-        status: 'success',
-        message: 'Sampul berhasil diunggah',
-      });
-    } catch (error) {
-      if (error instanceof multer.MulterError) {
-        const message = error.code === 'LIMIT_FILE_SIZE'
-          ? 'Ukuran file maksimal 512KB'
-          : 'Gagal mengunggah file';
-        return res.status(400).json({
-          status: 'fail',
-          message,
-        });
-      }
-      const status = error instanceof ClientError ? 400 : 500;
-      const message = error instanceof ClientError ? error.message : 'Gagal mengunggah sampul';
-      return res.status(status).json({
-        status: 'fail',
-        message,
-      });
-    }
-  }
-
   // === POST /albums/{id}/likes ===
   async postLikeAlbum(req, res) {
     try {
       const { id: albumId } = req.params;
-      const { id: userId } = req.user;
+      const userId = req.auth?.userId;
+
+      if (!userId) {
+        return res.status(401).json({
+          status: 'fail',
+          message: 'Missing authentication',
+        });
+      }
 
       await this._likesService.likeAlbum(albumId, userId);
       return res.status(201).json({
@@ -178,11 +153,11 @@ class AlbumsHandler {
         message: 'Album disukai',
       });
     } catch (error) {
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({ status: 'fail', message: error.message });
+      }
       if (error.message.includes('sudah menyukai')) {
-        return res.status(400).json({
-          status: 'fail',
-          message: error.message,
-        });
+        return res.status(400).json({ status: 'fail', message: error.message });
       }
       return res.status(500).json({
         status: 'error',
@@ -195,14 +170,24 @@ class AlbumsHandler {
   async deleteLikeAlbum(req, res) {
     try {
       const { id: albumId } = req.params;
-      const { id: userId } = req.user;
+      const userId = req.auth?.userId;
+
+      if (!userId) {
+        return res.status(401).json({
+          status: 'fail',
+          message: 'Missing authentication',
+        });
+      }
 
       await this._likesService.unlikeAlbum(albumId, userId);
       return res.status(200).json({
         status: 'success',
         message: 'Batal menyukai album',
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({ status: 'fail', message: error.message });
+      }
       return res.status(500).json({
         status: 'error',
         message: 'Terjadi kesalahan server',
@@ -217,14 +202,51 @@ class AlbumsHandler {
       const result = await this._likesService.getLikesCount(albumId);
       const headers = result.fromCache ? { 'X-Data-Source': 'cache' } : {};
 
-      return res.status(200).set(headers).json({
-        status: 'success',
-        data: { likes: result.count },
-      });
+      return res
+        .status(200)
+        .set(headers)
+        .json({
+          status: 'success',
+          data: { likes: result.count },
+        });
     } catch {
       return res.status(500).json({
         status: 'error',
         message: 'Terjadi kesalahan server',
+      });
+    }
+  }
+
+  // === POST /albums/{id}/covers ===
+  async postUploadCover(req, res) {
+    try {
+      const { id } = req.params;
+
+      if (!req.file) {
+        return res.status(400).json({
+          status: 'fail',
+          message: 'File cover belum diunggah',
+        });
+      }
+
+      const filePath = path.join('uploads', req.file.filename);
+      await this._service.updateAlbumCover(id, filePath);
+
+      return res.status(201).json({
+        status: 'success',
+        message: 'Sampul album berhasil diunggah',
+      });
+    } catch (error) {
+      if (error instanceof multer.MulterError) {
+        const message = error.code === 'LIMIT_FILE_SIZE'
+            ? 'Ukuran file terlalu besar (maks 512KB)'
+            : 'Gagal mengunggah file';
+        return res.status(400).json({ status: 'fail', message });
+      }
+
+      return res.status(500).json({
+        status: 'error',
+        message: error.message,
       });
     }
   }

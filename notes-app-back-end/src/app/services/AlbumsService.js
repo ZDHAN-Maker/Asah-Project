@@ -92,18 +92,24 @@ class AlbumsService {
     return res.rows[0].id; // Return the album ID as a string
   }
 
-  async updateCoverUrl(albumId, coverUrl) {
+  async updateAlbumCover(albumId, coverUrl) {
     const query = {
-      text: 'UPDATE albums SET cover_url = $1 WHERE id = $2 RETURNING id',
-      values: [coverUrl, albumId],
+      text: `
+        UPDATE albums
+        SET cover_url = $1, updated_at = $2
+        WHERE id = $3
+        RETURNING id
+      `,
+      values: [coverUrl, new Date().toISOString(), albumId],
     };
+
     const result = await this.pool.query(query);
 
     if (!result.rowCount) {
-      throw new NotFoundError('Album not found');
+      throw new NotFoundError('Album tidak ditemukan untuk memperbarui cover');
     }
 
-    return result.rows[0].id; // Return the album ID as a string
+    return result.rows[0].id;
   }
 }
 
