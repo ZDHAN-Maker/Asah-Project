@@ -2,7 +2,7 @@ const { nanoid } = require('nanoid');
 const pool = require('../db/index');
 const ClientError = require('../utils/error/ClientError');
 const NotFoundError = require('../utils/error/NotFoundError');
-
+const InvariantError = require('../utils/error/InvariantError');
 class CollaborationsService {
   constructor(playlistService) {
     this._playlistService = playlistService;
@@ -55,6 +55,17 @@ class CollaborationsService {
     }
 
     return true;
+  }
+
+  async verifyCollaborator(playlistId, userId) {
+    const result = await pool.query(
+      'SELECT * FROM collaborations WHERE playlist_id = $1 AND user_id = $1',
+      [playlistId, userId]
+    );
+
+    if (!result.rowCount) {
+      throw new InvariantError('Anda bukan collaborator pada playlist ini');
+    }
   }
 }
 
