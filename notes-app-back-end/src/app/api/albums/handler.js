@@ -207,21 +207,21 @@ class AlbumsHandler {
       await this._service.getAlbumById(albumId);
 
       const result = await this._likesService.getLikesCount(albumId);
-      const headers = result.fromCache ? { 'X-Data-Source': 'cache' } : {};
+
+      // Selalu kirim header sumber data
+      const source = result.fromCache ? 'cache' : 'db';
       return res
         .status(200)
-        .set(headers)
+        .set('X-Data-Source', source) // <-- penting!
         .json({
           status: 'success',
           data: { likes: result.count },
         });
     } catch (error) {
       if (error?.name === 'NotFoundError') {
-        return res
-          .status(404)
-          .json({ status: 'fail', message: error.message || 'Album not found' });
+        return res.status(404).json({ status: 'fail', message: error.message });
       }
-      console.error('getAlbumLikes error:', error);
+      console.error(error);
       return res
         .status(500)
         .json({ status: 'error', message: 'Server error while getting like count' });

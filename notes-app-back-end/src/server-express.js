@@ -2,12 +2,16 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 
+// === DB POOL (untuk services yang butuh koneksi PG) ===
+const pool = require('./app/db');
+
 // === USERS ===
 const UsersHandler = require('./app/api/users/handler');
 const createUsersRouter = require('./app/api/users/routes');
 
 // === ALBUMS ===
 const AlbumsService = require('./app/services/AlbumsService');
+const AlbumLikesService = require('./app/services/AlbumLikesService'); // <— ada
 const albumValidator = require('./app/api/albums/validator');
 const AlbumsHandler = require('./app/api/albums/handler');
 const createAlbumsRouter = require('./app/api/albums/routes');
@@ -45,9 +49,18 @@ collaborationsService._playlistService = playlistsService;
 const albumsService = new AlbumsService();
 const songsService = new SongsService();
 
+// === LIKES SERVICE (BARU) ===
+const albumLikesService = new AlbumLikesService(pool); // <— inisialisasi likes service
+
 // === HANDLER INIT ===
 const usersHandler = new UsersHandler();
-const albumsHandler = new AlbumsHandler(albumsService, albumValidator, songsService);
+// >>> suntikkan albumLikesService ke AlbumsHandler <<<
+const albumsHandler = new AlbumsHandler(
+  albumsService,
+  albumValidator,
+  songsService,
+  albumLikesService // <— penting!
+);
 const songsHandler = new SongsHandler(songsService, songValidator);
 const playlistsHandler = new PlaylistsHandler(playlistsService, playlistsValidator);
 const collaboratorHandler = new CollaboratorHandler(collaborationsService, validateCollaborator);
@@ -55,7 +68,7 @@ const collaboratorHandler = new CollaboratorHandler(collaborationsService, valid
 // === ROUTER INIT ===
 app.use('/users', createUsersRouter(usersHandler));
 app.use('/', createUsersRouter(usersHandler));
-app.use('/albums', createAlbumsRouter(albumsHandler));
+app.use('/albums', createAlbumsRouter(albumsHandler)); // endpoint likes ada di router ini
 app.use('/songs', createSongsRouter(songsHandler));
 app.use('/playlists', createPlaylistsRouter(playlistsHandler));
 app.use('/collaborations', createCollaboratorRoute(collaboratorHandler));

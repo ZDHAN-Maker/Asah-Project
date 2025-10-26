@@ -97,14 +97,20 @@ class AlbumLikesService {
 
     const cacheKey = `album_likes:${albumId}`;
     const cached = await this._safeGet(cacheKey);
-    if (cached !== null) return { count: parseInt(cached, 10), fromCache: true };
 
+    if (cached !== null) {
+      console.log('[CACHE HIT]', cacheKey);
+      return { count: parseInt(cached, 10), fromCache: true };
+    }
+
+    console.log('[CACHE MISS]', cacheKey);
     const r = await this._pool.query({
       text: 'SELECT COUNT(*)::int AS c FROM user_album_likes WHERE album_id = $1',
       values: [albumId],
     });
     const count = r.rows[0]?.c ?? 0;
     await this._safeSetEx(cacheKey, 1800, String(count));
+    console.log('[CACHE SET]', cacheKey, count);
     return { count, fromCache: false };
   }
 }
