@@ -17,11 +17,10 @@ const fileFilter = (_req, file, cb) => {
   if (/^image\/(png|jpe?g|webp)$/i.test(file.mimetype)) cb(null, true);
   else cb(new Error('Tipe konten harus gambar'), false);
 };
-
 const uploadCover = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 512000 }, // 500 KB
+  limits: { fileSize: 2 * 1024 * 1024 },
 }).single('cover');
 
 module.exports = { uploadCover };

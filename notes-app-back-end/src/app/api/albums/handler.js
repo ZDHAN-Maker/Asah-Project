@@ -1,7 +1,7 @@
 const path = require('path');
-const { uploadCover } = require('../../middleware/uploadMiddleware');
 const ClientError = require('../../utils/error/ClientError');
 const NotFoundError = require('../../utils/error/NotFoundError');
+const { uploadCover } = require('../../utils/upload');
 const validateAlbum = require('./validator');
 
 class AlbumsHandler {
@@ -139,10 +139,17 @@ class AlbumsHandler {
     uploadCover(req, res, async (err) => {
       try {
         if (err) {
-          const message = err.code === 'LIMIT_FILE_SIZE'
-              ? 'Ukuran file terlalu besar (maks 512KB)'
-              : err.message || 'Gagal mengunggah file';
-          return res.status(400).json({ status: 'fail', message });
+          if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(413).json({
+              status: 'fail',
+              message: 'Ukuran file terlalu besar (maks 512KB)',
+            });
+          }
+
+          return res.status(400).json({
+            status: 'fail',
+            message: err.message || 'Gagal mengunggah file',
+          });
         }
 
         const { id } = req.params;
@@ -238,10 +245,13 @@ class AlbumsHandler {
   async getAlbumLikes(req, res) {
     try {
       const { id: albumId } = req.params;
-      await this._service.getAlbumById(albumId);
-      const result = await this._likesService.getLikesCount(albumId);
 
+      // pastikan album ada
+      await this._service.getAlbumById(albumId);
+
+      const result = await this._likesService.getLikesCount(albumId);
       const source = result.fromCache ? 'cache' : 'db';
+
       return res
         .status(200)
         .set('X-Data-Source', source)

@@ -80,11 +80,4 @@ app.listen(PORT, () => {
   console.log(`Server berjalan pada port ${PORT}`);
 });
 
-// === QUEUE CONSUMER (playlist export) ===
-try {
-  playlistsService.listenForPlaylistExportRequests();
-} catch (err) {
-  console.warn('Gagal memulai playlist export consumer:', err.message);
-}
-
 module.exports = app;
