@@ -138,11 +138,20 @@ class AlbumsHandler {
   async postUploadCover(req, res) {
     uploadCover(req, res, async (err) => {
       try {
+        // Menangani error jika ukuran file terlalu besar
         if (err) {
           if (err.code === 'LIMIT_FILE_SIZE') {
             return res.status(413).json({
               status: 'fail',
-              message: 'Ukuran file terlalu besar (maks 512KB)',
+              message: 'Ukuran file terlalu besar (maks 512kb)',
+            });
+          }
+
+          // Menangani error jika tipe file tidak valid
+          if (err.message === 'Tipe konten harus gambar') {
+            return res.status(400).json({
+              status: 'fail',
+              message: 'Tipe file harus berupa gambar (png, jpg, jpeg, webp)',
             });
           }
 
@@ -152,8 +161,7 @@ class AlbumsHandler {
           });
         }
 
-        const { id } = req.params;
-
+        // Memeriksa apakah file berhasil diunggah
         if (!req.file) {
           return res.status(400).json({
             status: 'fail',
@@ -161,15 +169,21 @@ class AlbumsHandler {
           });
         }
 
+        // Mendapatkan path file yang diunggah
         const filePath = path.join('uploads', 'covers', req.file.filename);
-        await this._service.updateAlbumCover(id, filePath);
+
+        // Memperbarui cover album
+        const albumId = await this._service.updateAlbumCover(req.params.id, filePath);
 
         return res.status(201).json({
           status: 'success',
           message: 'Sampul album berhasil diunggah',
+          data: {
+            albumId,
+            coverUrl: filePath,
+          },
         });
       } catch (error) {
-        // eslint-disable-next-line no-console
         console.error('Upload cover error:', error);
         return res.status(500).json({
           status: 'error',
@@ -184,29 +198,41 @@ class AlbumsHandler {
     try {
       const { id: albumId } = req.params;
       const userId = req.auth?.userId;
+
+      // Cek autentikasi user
       if (!userId) {
         return res.status(401).json({ status: 'fail', message: 'Missing authentication' });
       }
 
-      await this._service.getAlbumById(albumId);
+      // Cek apakah album ada
+      const album = await this._service.getAlbumById(albumId);
+      if (!album) {
+        return res.status(404).json({ status: 'fail', message: 'Album not found' });
+      }
 
+      // Cek apakah user sudah menyukai album
       const already = await this._likesService.checkUserLike(albumId, userId);
       if (already) {
         return res.status(400).json({ status: 'fail', message: 'User already liked this album' });
       }
 
+      // Proses like album
       await this._likesService.likeAlbum(albumId, userId);
       return res.status(201).json({ status: 'success', message: 'Album liked successfully' });
     } catch (error) {
+      // Menangani error jika album tidak ditemukan
       if (error?.name === 'NotFoundError') {
         return res
           .status(404)
           .json({ status: 'fail', message: error.message || 'Album not found' });
       }
+
+      // Menangani error jika user sudah menyukai album
       if (error?.code === 'DUPLICATE_LIKE') {
         return res.status(400).json({ status: 'fail', message: 'User already liked this album' });
       }
-      // eslint-disable-next-line no-console
+
+      // Menangani error lainnya
       console.error('postLikeAlbum error:', error);
       return res.status(500).json({ status: 'error', message: 'Server error while liking album' });
     }

@@ -19,26 +19,25 @@ class AlbumLikesService {
   }
 
   async likeAlbum(albumId, userId) {
+    // Cek apakah user sudah menyukai album
     const already = await this.checkUserLike(albumId, userId);
     if (already) {
-      const err = new Error('Anda sudah menyukai album ini');
-      err.statusCode = 400;
+      // Lempar error dengan code 'DUPLICATE_LIKE' untuk penanganan di handler
+      const err = new Error('User already liked this album');
+      err.code = 'DUPLICATE_LIKE';
       throw err;
     }
 
-    const id = nanoid(); // Membuat ID unik untuk setiap like
+    // Membuat ID unik untuk like
+    const id = nanoid();
 
-    // Menyisipkan ID unik ke dalam query insert
+    // Masukkan data ke tabel user_album_likes
     await this._pool.query(
       'INSERT INTO user_album_likes (id, album_id, user_id) VALUES ($1, $2, $3)',
-      [
-        id, // Menambahkan ID yang dihasilkan nanoid
-        albumId,
-        userId,
-      ]
+      [id, albumId, userId]
     );
 
-    // Menghapus cache album yang baru saja disukai
+    // Hapus cache album yang baru saja disukai
     await this._cache.delete(this._cacheKey(albumId));
   }
 

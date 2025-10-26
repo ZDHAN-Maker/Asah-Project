@@ -20,7 +20,7 @@ const fileFilter = (_req, file, cb) => {
 const uploadCover = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 2 * 1024 * 1024 },
+  limits: { fileSize: 512 * 1024 }, // Maksimum 512 KB
 }).single('cover');
 
 module.exports = { uploadCover };
