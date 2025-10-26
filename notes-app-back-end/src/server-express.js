@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 
-// === DB POOL (untuk services yang butuh koneksi PG) ===
+// === DB POOL ===
 const pool = require('./app/db');
 
 // === USERS ===
@@ -11,7 +11,7 @@ const createUsersRouter = require('./app/api/users/routes');
 
 // === ALBUMS ===
 const AlbumsService = require('./app/services/AlbumsService');
-const AlbumLikesService = require('./app/services/AlbumLikesService'); // <— ada
+const AlbumLikesService = require('./app/services/AlbumLikesService');
 const albumValidator = require('./app/api/albums/validator');
 const AlbumsHandler = require('./app/api/albums/handler');
 const createAlbumsRouter = require('./app/api/albums/routes');
@@ -34,50 +34,51 @@ const validateCollaborator = require('./app/api/collaborations/validator');
 const CollaboratorHandler = require('./app/api/collaborations/handler');
 const createCollaboratorRoute = require('./app/api/collaborations/routes');
 
-// === APP INIT ===
-const app = express();
-app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// === CACHE ===
+const CacheService = require('./app/services/CacheService');
 
-// === SERVICE INIT ===
-const collaborationsService = new CollaborationsService();
-const playlistsService = new PlaylistsService(collaborationsService);
+(async () => {
+  // --- init app ---
+  const app = express();
+  app.use(express.json());
+  app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Menyambungkan service agar kolaborasi bisa akses playlist
-collaborationsService._playlistService = playlistsService;
+  // --- init services ---
+  const collaborationsService = new CollaborationsService();
+  const playlistsService = new PlaylistsService(collaborationsService);
+  collaborationsService._playlistService = playlistsService;
 
-const albumsService = new AlbumsService();
-const songsService = new SongsService();
+  const albumsService = new AlbumsService();
+  const songsService = new SongsService();
 
-// === LIKES SERVICE (BARU) ===
-const albumLikesService = new AlbumLikesService(pool); // <— inisialisasi likes service
+  // >>> init cache (Redis) dan likes service <<<
+  const cacheService = await CacheService.create(); // TUNGGU konek Redis
+  const albumLikesService = new AlbumLikesService(pool, cacheService);
 
-// === HANDLER INIT ===
-const usersHandler = new UsersHandler();
-// >>> suntikkan albumLikesService ke AlbumsHandler <<<
-const albumsHandler = new AlbumsHandler(
-  albumsService,
-  albumValidator,
-  songsService,
-  albumLikesService // <— penting!
-);
-const songsHandler = new SongsHandler(songsService, songValidator);
-const playlistsHandler = new PlaylistsHandler(playlistsService, playlistsValidator);
-const collaboratorHandler = new CollaboratorHandler(collaborationsService, validateCollaborator);
+  // --- init handlers ---
+  const usersHandler = new UsersHandler();
+  const albumsHandler = new AlbumsHandler(
+    albumsService,
+    albumValidator,
+    songsService,
+    albumLikesService // <— penting!
+  );
+  const songsHandler = new SongsHandler(songsService, songValidator);
+  const playlistsHandler = new PlaylistsHandler(playlistsService, playlistsValidator);
+  const collaboratorHandler = new CollaboratorHandler(collaborationsService, validateCollaborator);
 
-// === ROUTER INIT ===
-app.use('/users', createUsersRouter(usersHandler));
-app.use('/', createUsersRouter(usersHandler));
-app.use('/albums', createAlbumsRouter(albumsHandler)); // endpoint likes ada di router ini
-app.use('/songs', createSongsRouter(songsHandler));
-app.use('/playlists', createPlaylistsRouter(playlistsHandler));
-app.use('/collaborations', createCollaboratorRoute(collaboratorHandler));
-app.use('/export', createPlaylistsRouter(playlistsHandler));
+  // --- init routers ---
+  app.use('/users', createUsersRouter(usersHandler));
+  app.use('/', createUsersRouter(usersHandler));
+  app.use('/albums', createAlbumsRouter(albumsHandler)); // pastikan route likes ada
+  app.use('/songs', createSongsRouter(songsHandler));
+  app.use('/playlists', createPlaylistsRouter(playlistsHandler));
+  app.use('/collaborations', createCollaboratorRoute(collaboratorHandler));
+  app.use('/export', createPlaylistsRouter(playlistsHandler));
 
-// === SERVER START ===
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server berjalan pada port ${PORT}`);
-});
-
-module.exports = app;
+  // --- start server ---
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`Server berjalan pada port ${PORT}`);
+  });
+})();

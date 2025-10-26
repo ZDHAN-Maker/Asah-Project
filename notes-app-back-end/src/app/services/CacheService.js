@@ -1,111 +1,54 @@
+// app/services/CacheService.js
 const redis = require('redis');
 
 class CacheService {
-  constructor() {
+  constructor(client) {
+    this._client = client;
+  }
+
+  static async create() {
     const host = process.env.REDIS_SERVER || '127.0.0.1';
+    const port = Number(process.env.REDIS_PORT || '6379');
+    const password = process.env.REDIS_PASSWORD;
 
-    // Socket mode (kriteria Dicoding) + hentikan auto-retry
-    this._client = redis.createClient({
+    const url = password
+      ? `redis://:${encodeURIComponent(password)}@${host}:${port}`
+      : `redis://${host}:${port}`;
+
+    const client = redis.createClient({
+      url,
       socket: {
-        host,
-        port: 6379,
-        // stop reconnect loops yang bikin lambat
-        reconnectStrategy: () => false,
-        connectTimeout: 500, // cepat gagal kalau tidak ada Redis
+        family: 4,
+        connectTimeout: 10000,
+        reconnectStrategy: (retries) => Math.min(1000 * retries, 10000),
       },
-      // perintah jangan gantung lama
-      disableOfflineQueue: true,
     });
 
-    // fallback in-memory cache (key -> { value, expMs })
-    this._mem = new Map();
-
-    this._ready = false;
-    this._setup();
-  }
-
-  _setup() {
-    this._client.on('ready', () => {
-      this._ready = true;
-      console.log('[Redis] connected (socket mode)');
+    client.on('error', (err) => {
+      console.error('[Redis Error]', err.message);
     });
 
-    this._client.on('end', () => {
-      this._ready = false;
-      console.warn('[Redis] disconnected - using in-memory cache');
-    });
+    await client.connect();
+    await client.ping();
 
-    this._client.on('error', (err) => {
-      if (err?.code === 'ECONNREFUSED') {
-        console.warn('[Redis] ECONNREFUSED 127.0.0.1:6379 - using in-memory cache');
-      } else {
-        console.warn('[Redis] error:', err?.message || err);
-      }
-      this._ready = false;
-    });
-
-    // Satu kali connect; kalau gagal, pakai memcache
-    this._client.connect().catch(() => {
-      this._ready = false;
-      // no throw: biarkan app tetap jalan pakai memcache
-    });
+    return new CacheService(client);
   }
 
-  // ===== in-memory helpers =====
-  _memGet(key) {
-    const obj = this._mem.get(key);
-    if (!obj) return null;
-    if (Date.now() > obj.expMs) {
-      this._mem.delete(key);
-      return null;
-    }
-    return obj.value;
-  }
-
-  _memSet(key, value, ttlSec) {
-    this._mem.set(key, { value, expMs: Date.now() + ttlSec * 1000 });
-  }
-
-  _memDel(key) {
-    this._mem.delete(key);
-  }
-
-  // ===== Public API =====
-  async set(key, value, expirationInSecond = 1800) {
-    // selalu set ke memory dulu (supaya cepat)
-    this._memSet(key, value, expirationInSecond);
-
-    if (!this._ready) return; // Redis mati: selesai
-    try {
-      await this._client.set(key, value, { EX: expirationInSecond });
-    } catch (_) {
-      // diam: fallback mem sudah terisi
-    }
+  async set(key, value, expirationInSeconds = 1800) {
+    // default 30 menit
+    await this._client.set(key, value, { EX: expirationInSeconds });
   }
 
   async get(key) {
-    // coba Redis hanya jika ready
-    if (this._ready) {
-      try {
-        const v = await this._client.get(key);
-        if (v !== null) return v;
-      } catch (_) {
-        // diam dan lanjut ke memcache
-      }
-    }
-    const mv = this._memGet(key);
-    return mv === null ? null : mv;
+    return this._client.get(key); // kembalikan null bila tak ada
   }
 
   async delete(key) {
-    // hapus keduanya
-    this._memDel(key);
-    if (!this._ready) return;
-    try {
-      await this._client.del(key);
-    } catch (_) {
-      // diam
-    }
+    return this._client.del(key);
+  }
+
+  async close() {
+    await this._client.quit();
   }
 }
 
