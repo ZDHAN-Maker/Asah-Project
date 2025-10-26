@@ -12,7 +12,6 @@ const createUsersRouter = require('./app/api/users/routes');
 // === ALBUMS ===
 const AlbumsService = require('./app/services/AlbumsService');
 const AlbumLikesService = require('./app/services/AlbumLikesService');
-const albumValidator = require('./app/api/albums/validator');
 const AlbumsHandler = require('./app/api/albums/handler');
 const createAlbumsRouter = require('./app/api/albums/routes');
 
@@ -57,12 +56,7 @@ const CacheService = require('./app/services/CacheService');
 
   // --- init handlers ---
   const usersHandler = new UsersHandler();
-  const albumsHandler = new AlbumsHandler(
-    albumsService,
-    albumValidator,
-    songsService,
-    albumLikesService // <— penting!
-  );
+  const albumsHandler = new AlbumsHandler(albumsService, songsService, albumLikesService);
   const songsHandler = new SongsHandler(songsService, songValidator);
   const playlistsHandler = new PlaylistsHandler(playlistsService, playlistsValidator);
   const collaboratorHandler = new CollaboratorHandler(collaborationsService, validateCollaborator);

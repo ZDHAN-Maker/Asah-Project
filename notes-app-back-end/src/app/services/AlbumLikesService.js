@@ -1,3 +1,5 @@
+const { nanoid } = require('nanoid');
+
 class AlbumLikesService {
   constructor(pool, cacheService) {
     this._pool = pool;
@@ -24,11 +26,19 @@ class AlbumLikesService {
       throw err;
     }
 
-    await this._pool.query('INSERT INTO user_album_likes (album_id, user_id) VALUES ($1, $2)', [
-      albumId,
-      userId,
-    ]);
+    const id = nanoid(); // Membuat ID unik untuk setiap like
 
+    // Menyisipkan ID unik ke dalam query insert
+    await this._pool.query(
+      'INSERT INTO user_album_likes (id, album_id, user_id) VALUES ($1, $2, $3)',
+      [
+        id, // Menambahkan ID yang dihasilkan nanoid
+        albumId,
+        userId,
+      ]
+    );
+
+    // Menghapus cache album yang baru saja disukai
     await this._cache.delete(this._cacheKey(albumId));
   }
 

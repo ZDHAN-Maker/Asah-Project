@@ -5,7 +5,7 @@ const { uploadCover } = require('../../utils/upload');
 const validateAlbum = require('./validator');
 
 class AlbumsHandler {
-  constructor(service, validator, songsService, likesService) {
+  constructor(service, songsService, likesService) {
     this._service = service;
     this._songsService = songsService;
     this._likesService = likesService;
@@ -169,6 +169,7 @@ class AlbumsHandler {
           message: 'Sampul album berhasil diunggah',
         });
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error('Upload cover error:', error);
         return res.status(500).json({
           status: 'error',
@@ -205,6 +206,7 @@ class AlbumsHandler {
       if (error?.code === 'DUPLICATE_LIKE') {
         return res.status(400).json({ status: 'fail', message: 'User already liked this album' });
       }
+      // eslint-disable-next-line no-console
       console.error('postLikeAlbum error:', error);
       return res.status(500).json({ status: 'error', message: 'Server error while liking album' });
     }
@@ -234,6 +236,7 @@ class AlbumsHandler {
           .status(404)
           .json({ status: 'fail', message: error.message || 'Album not found' });
       }
+      // eslint-disable-next-line no-console
       console.error('deleteLikeAlbum error:', error);
       return res
         .status(500)
@@ -250,19 +253,21 @@ class AlbumsHandler {
       await this._service.getAlbumById(albumId);
 
       const result = await this._likesService.getLikesCount(albumId);
-      const source = result.fromCache ? 'cache' : 'db';
 
-      return res
-        .status(200)
-        .set('X-Data-Source', source)
-        .json({
-          status: 'success',
-          data: { likes: result.count },
-        });
+      const response = res.status(200);
+      if (result.fromCache) {
+        response.set('X-Data-Source', 'cache'); // hanya saat dari cache
+      }
+
+      return response.json({
+        status: 'success',
+        data: { likes: result.count },
+      });
     } catch (error) {
       if (error?.name === 'NotFoundError') {
         return res.status(404).json({ status: 'fail', message: error.message });
       }
+      // eslint-disable-next-line no-console
       console.error(error);
       return res
         .status(500)
