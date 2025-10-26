@@ -139,30 +139,32 @@ class AlbumsHandler {
     try {
       const { id: albumId } = req.params;
       const userId = req.auth?.userId;
-
       if (!userId) {
-        return res.status(401).json({
-          status: 'fail',
-          message: 'Missing authentication',
-        });
+        return res.status(401).json({ status: 'fail', message: 'Missing authentication' });
+      }
+
+      // pastikan album ada (getAlbumById biasanya melempar NotFoundError)
+      await this._service.getAlbumById(albumId);
+
+      // cek sudah like?
+      const already = await this._likesService.checkUserLike(albumId, userId);
+      if (already) {
+        return res.status(400).json({ status: 'fail', message: 'User already liked this album' });
       }
 
       await this._likesService.likeAlbum(albumId, userId);
-      return res.status(201).json({
-        status: 'success',
-        message: 'Album disukai',
-      });
+      return res.status(201).json({ status: 'success', message: 'Album liked successfully' });
     } catch (error) {
-      if (error instanceof NotFoundError) {
-        return res.status(404).json({ status: 'fail', message: error.message });
+      if (error?.name === 'NotFoundError') {
+        return res
+          .status(404)
+          .json({ status: 'fail', message: error.message || 'Album not found' });
       }
-      if (error.message.includes('sudah menyukai')) {
-        return res.status(400).json({ status: 'fail', message: error.message });
+      if (error?.code === 'DUPLICATE_LIKE') {
+        return res.status(400).json({ status: 'fail', message: 'User already liked this album' });
       }
-      return res.status(500).json({
-        status: 'error',
-        message: 'Terjadi kesalahan server',
-      });
+      console.error('postLikeAlbum error:', error);
+      return res.status(500).json({ status: 'error', message: 'Server error while liking album' });
     }
   }
 
@@ -171,27 +173,29 @@ class AlbumsHandler {
     try {
       const { id: albumId } = req.params;
       const userId = req.auth?.userId;
-
       if (!userId) {
-        return res.status(401).json({
-          status: 'fail',
-          message: 'Missing authentication',
-        });
+        return res.status(401).json({ status: 'fail', message: 'Missing authentication' });
+      }
+
+      await this._service.getAlbumById(albumId);
+
+      const already = await this._likesService.checkUserLike(albumId, userId);
+      if (!already) {
+        return res.status(400).json({ status: 'fail', message: 'User has not liked this album' });
       }
 
       await this._likesService.unlikeAlbum(albumId, userId);
-      return res.status(200).json({
-        status: 'success',
-        message: 'Batal menyukai album',
-      });
+      return res.status(200).json({ status: 'success', message: 'Album unliked successfully' });
     } catch (error) {
-      if (error instanceof NotFoundError) {
-        return res.status(404).json({ status: 'fail', message: error.message });
+      if (error?.name === 'NotFoundError') {
+        return res
+          .status(404)
+          .json({ status: 'fail', message: error.message || 'Album not found' });
       }
-      return res.status(500).json({
-        status: 'error',
-        message: 'Terjadi kesalahan server',
-      });
+      console.error('deleteLikeAlbum error:', error);
+      return res
+        .status(500)
+        .json({ status: 'error', message: 'Server error while unliking album' });
     }
   }
 
@@ -199,6 +203,9 @@ class AlbumsHandler {
   async getAlbumLikes(req, res) {
     try {
       const { id: albumId } = req.params;
+
+      await this._service.getAlbumById(albumId);
+
       const result = await this._likesService.getLikesCount(albumId);
       const headers = result.fromCache ? { 'X-Data-Source': 'cache' } : {};
       return res
@@ -209,13 +216,15 @@ class AlbumsHandler {
           data: { likes: result.count },
         });
     } catch (error) {
-      if (error instanceof NotFoundError) {
-        return res.status(404).json({ status: 'fail', message: error.message });
+      if (error?.name === 'NotFoundError') {
+        return res
+          .status(404)
+          .json({ status: 'fail', message: error.message || 'Album not found' });
       }
-      return res.status(500).json({
-        status: 'error',
-        message: 'Terjadi kesalahan server',
-      });
+      console.error('getAlbumLikes error:', error);
+      return res
+        .status(500)
+        .json({ status: 'error', message: 'Server error while getting like count' });
     }
   }
 
