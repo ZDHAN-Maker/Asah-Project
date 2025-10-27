@@ -138,7 +138,6 @@ class AlbumsHandler {
   async postUploadCover(req, res) {
     uploadCover(req, res, async (err) => {
       try {
-        // Menangani error jika ukuran file terlalu besar
         if (err) {
           if (err.code === 'LIMIT_FILE_SIZE') {
             return res.status(413).json({
@@ -147,7 +146,6 @@ class AlbumsHandler {
             });
           }
 
-          // Menangani error jika tipe file tidak valid
           if (err.message === 'Tipe konten harus gambar') {
             return res.status(400).json({
               status: 'fail',
@@ -161,7 +159,6 @@ class AlbumsHandler {
           });
         }
 
-        // Memeriksa apakah file berhasil diunggah
         if (!req.file) {
           return res.status(400).json({
             status: 'fail',
@@ -169,10 +166,7 @@ class AlbumsHandler {
           });
         }
 
-        // Mendapatkan path file yang diunggah
         const filePath = path.join('uploads', 'covers', req.file.filename);
-
-        // Memperbarui cover album
         const albumId = await this._service.updateAlbumCover(req.params.id, filePath);
 
         return res.status(201).json({
@@ -183,8 +177,7 @@ class AlbumsHandler {
             coverUrl: filePath,
           },
         });
-      } catch (error) {
-        console.error('Upload cover error:', error);
+      } catch {
         return res.status(500).json({
           status: 'error',
           message: 'Gagal memperbarui cover album',
@@ -199,41 +192,33 @@ class AlbumsHandler {
       const { id: albumId } = req.params;
       const userId = req.auth?.userId;
 
-      // Cek autentikasi user
       if (!userId) {
         return res.status(401).json({ status: 'fail', message: 'Missing authentication' });
       }
 
-      // Cek apakah album ada
       const album = await this._service.getAlbumById(albumId);
       if (!album) {
         return res.status(404).json({ status: 'fail', message: 'Album not found' });
       }
 
-      // Cek apakah user sudah menyukai album
       const already = await this._likesService.checkUserLike(albumId, userId);
       if (already) {
         return res.status(400).json({ status: 'fail', message: 'User already liked this album' });
       }
 
-      // Proses like album
       await this._likesService.likeAlbum(albumId, userId);
       return res.status(201).json({ status: 'success', message: 'Album liked successfully' });
     } catch (error) {
-      // Menangani error jika album tidak ditemukan
       if (error?.name === 'NotFoundError') {
         return res
           .status(404)
           .json({ status: 'fail', message: error.message || 'Album not found' });
       }
 
-      // Menangani error jika user sudah menyukai album
       if (error?.code === 'DUPLICATE_LIKE') {
         return res.status(400).json({ status: 'fail', message: 'User already liked this album' });
       }
 
-      // Menangani error lainnya
-      console.error('postLikeAlbum error:', error);
       return res.status(500).json({ status: 'error', message: 'Server error while liking album' });
     }
   }
@@ -243,6 +228,7 @@ class AlbumsHandler {
     try {
       const { id: albumId } = req.params;
       const userId = req.auth?.userId;
+
       if (!userId) {
         return res.status(401).json({ status: 'fail', message: 'Missing authentication' });
       }
@@ -262,8 +248,7 @@ class AlbumsHandler {
           .status(404)
           .json({ status: 'fail', message: error.message || 'Album not found' });
       }
-      // eslint-disable-next-line no-console
-      console.error('deleteLikeAlbum error:', error);
+
       return res
         .status(500)
         .json({ status: 'error', message: 'Server error while unliking album' });
@@ -275,14 +260,13 @@ class AlbumsHandler {
     try {
       const { id: albumId } = req.params;
 
-      // pastikan album ada
       await this._service.getAlbumById(albumId);
 
       const result = await this._likesService.getLikesCount(albumId);
 
       const response = res.status(200);
       if (result.fromCache) {
-        response.set('X-Data-Source', 'cache'); // hanya saat dari cache
+        response.set('X-Data-Source', 'cache');
       }
 
       return response.json({
@@ -293,8 +277,7 @@ class AlbumsHandler {
       if (error?.name === 'NotFoundError') {
         return res.status(404).json({ status: 'fail', message: error.message });
       }
-      // eslint-disable-next-line no-console
-      console.error(error);
+
       return res
         .status(500)
         .json({ status: 'error', message: 'Server error while getting like count' });

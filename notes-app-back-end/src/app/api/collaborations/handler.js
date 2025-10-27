@@ -29,8 +29,6 @@ class CollaboratorHandler {
         data: { collaborationId },
       });
     } catch (error) {
-      console.error('postCollaboratorHandler error:', error);
-
       if (error instanceof NotFoundError) {
         return res.status(404).json({ status: 'fail', message: error.message });
       }
@@ -63,8 +61,6 @@ class CollaboratorHandler {
         message: 'Kolaborator berhasil dihapus',
       });
     } catch (error) {
-      console.error('deleteCollaboratorHandler error:', error);
-
       if (error instanceof NotFoundError) {
         return res.status(404).json({ status: 'fail', message: error.message });
       }
