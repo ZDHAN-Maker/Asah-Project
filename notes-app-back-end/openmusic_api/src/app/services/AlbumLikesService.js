@@ -51,10 +51,14 @@ class AlbumLikesService {
 
   async getLikesCount(albumId) {
     const key = this._cacheKey(albumId);
-    const cached = await this._cache.get(key);
 
-    if (cached !== null) {
-      return { count: Number(cached), fromCache: true };
+    try {
+      const cached = await this._cache.get(key);
+      if (cached !== null) {
+        return { count: Number(cached), fromCache: true };
+      }
+    } catch (err) {
+      console.error('[Redis Error] Gagal membaca cache:', err.message);
     }
 
     const { rows } = await this._pool.query(
@@ -63,7 +67,12 @@ class AlbumLikesService {
     );
 
     const count = rows[0]?.likes ?? 0;
-    await this._cache.set(key, String(count), 1800);
+
+    try {
+      await this._cache.set(key, String(count), 1800);
+    } catch (err) {
+      console.error('[Redis Error] Gagal menyimpan cache:', err.message);
+    }
 
     return { count, fromCache: false };
   }

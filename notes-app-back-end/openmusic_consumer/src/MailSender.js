@@ -1,4 +1,4 @@
-const nodeMailer = require("nodemiler");
+const nodemailer = require('nodemailer');
 
 class MailSender {
   constructor() {

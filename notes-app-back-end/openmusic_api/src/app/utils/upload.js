@@ -2,25 +2,35 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 
-const dest = path.join(process.cwd(), 'uploads', 'covers');
-if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
+// === Pastikan folder tujuan ada ===
+const uploadDir = path.resolve(process.cwd(), 'uploads', 'covers');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
+// === Konfigurasi penyimpanan file ===
 const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, dest),
+  destination: (_req, _file, cb) => cb(null, uploadDir),
   filename: (req, file, cb) => {
-    const ext = (file.originalname.split('.').pop() || 'png').toLowerCase();
-    cb(null, `cover-${req.params.id}-${Date.now()}.${ext}`);
+    const albumId = req.params.id || 'unknown';
+    const ext = path.extname(file.originalname) || '.png';
+    cb(null, `cover-${albumId}-${Date.now()}${ext}`);
   },
 });
 
+// === Filter file hanya untuk gambar ===
 const fileFilter = (_req, file, cb) => {
-  if (/^image\/(png|jpe?g|webp)$/i.test(file.mimetype)) cb(null, true);
-  else cb(new Error('Tipe konten harus gambar'), false);
+  const allowed = /^image\/(png|jpe?g|webp)$/i;
+  if (allowed.test(file.mimetype)) cb(null, true);
+  else cb(new Error('Tipe file tidak diizinkan, hanya gambar PNG/JPG/WEBP'), false);
 };
+
+// === Middleware multer ===
 const uploadCover = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 512 * 1024 }, // Maksimum 512 KB
+  limits: { fileSize: 512 * 1024 }, // Maks 512KB
 }).single('cover');
 
+// === Ekspor middleware siap pakai ===
 module.exports = { uploadCover };

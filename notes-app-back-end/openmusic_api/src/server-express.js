@@ -40,7 +40,7 @@ const CacheService = require('./app/services/CacheService');
   // --- init app ---
   const app = express();
   app.use(express.json());
-  app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+  app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
   // --- init services ---
   const collaborationsService = new CollaborationsService();
