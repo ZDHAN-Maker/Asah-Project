@@ -11,4 +11,20 @@ class MailSender {
       },
     });
   }
+  sendEmail(targetEmail, content) {
+    const message = {
+      from: "Notes Apps",
+      to: targetEmail,
+      subject: "Ekspor Catatan",
+      text: "Terlampir hasil dari ekspor catatan",
+      attachments: [
+        {
+          filename: "notes.json",
+          content,
+        },
+      ],
+    };
+  }
 }
+
+module.exports = MailSender;
