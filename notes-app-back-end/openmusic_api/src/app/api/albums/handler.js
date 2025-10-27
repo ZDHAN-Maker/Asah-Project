@@ -1,6 +1,4 @@
-const path = require('path');
-const multer = require('multer');
-const { MulterError } = multer;
+const fs = require('fs');
 const ClientError = require('../../utils/error/ClientError');
 const NotFoundError = require('../../utils/error/NotFoundError');
 const { uploadCover } = require('../../utils/upload');
@@ -139,15 +137,10 @@ class AlbumsHandler {
   // === POST /albums/{id}/covers ===
   async postUploadCover(req, res) {
     try {
-      // Jalankan uploadCover sebagai Promise
-      await new Promise((resolve, reject) => {
-        uploadCover(req, res, (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
+      // Jalankan upload dengan Promise
+      await uploadCover(req, res);
 
-      // Pastikan file ada
+      // Pastikan file ada - ini harus dicek SETELAH upload
       if (!req.file) {
         return res.status(400).json({
           status: 'fail',
@@ -155,53 +148,72 @@ class AlbumsHandler {
         });
       }
 
-      // Simpan file path ke database
+      // Simpan ke database
       const albumId = req.params.id;
-      const filePath = path.join('uploads', 'covers', req.file.filename);
+      const filePath = `uploads/covers/${req.file.filename}`;
 
-      // Update cover album di database
-      await this._service.updateAlbumCover(albumId, filePath);
+      const updateResult = await this._service.updateAlbumCover(albumId, filePath);
 
-      // Kembalikan respons sukses
-      return res.status(201).json({
-        status: 'success',
-        message: 'Sampul album berhasil diunggah',
-        data: {
-          albumId,
-          coverUrl: filePath,
-        },
-      });
-    } catch (err) {
-      // Tangani error dari Multer
-      if (err instanceof MulterError) {
-        // Jika error karena ukuran file terlalu besar
-        if (err.code === 'LIMIT_FILE_SIZE') {
-          return res.status(413).json({
-            status: 'fail',
-            message: 'Ukuran file terlalu besar (maks 512KB)',
-          });
-        }
-
-        // Jika error karena tipe file tidak valid
-        if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-          return res.status(400).json({
-            status: 'fail',
-            message: 'Tipe file harus berupa gambar (png, jpg, jpeg, webp)',
-          });
-        }
-
-        // Error lainnya dari Multer
-        return res.status(400).json({
+      if (!updateResult) {
+        // Hapus file jika update database gagal
+        fs.unlinkSync(req.file.path);
+        return res.status(404).json({
           status: 'fail',
-          message: err.message || 'Gagal mengunggah file',
+          message: 'Album tidak ditemukan',
         });
       }
 
-      // Tangani error umum jika bukan dari Multer
-      console.error('Upload error:', err);
+      // Retrieve updated album from the database to ensure coverUrl is updated
+      const updatedAlbum = await this._service.getAlbumById(albumId);
+
+      return res.status(201).json({
+        status: 'success',
+        message: 'Cover album berhasil diunggah.',
+        data: {
+          albumId,
+          coverUrl: updatedAlbum.coverUrl, // Ensure the coverUrl is correct here
+        },
+      });
+    } catch (error) {
+      console.log('Upload Error Code:', error.code);
+      console.log('Upload Error Message:', error.message);
+
+      // Tangani error Multer
+      if (error.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({
+          status: 'fail',
+          message: 'File terlalu besar (maks 512KB)',
+        });
+      }
+
+      if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+        return res.status(400).json({
+          status: 'fail',
+          message: 'Tipe file harus berupa gambar (png, jpg, jpeg, webp)',
+        });
+      }
+
+      // Error ketika tidak ada file yang diupload (no image)
+      if (error.message && error.message.includes('No files were uploaded')) {
+        return res.status(400).json({
+          status: 'fail',
+          message: 'File cover belum diunggah',
+        });
+      }
+
+      // Error Multer lainnya
+      if (error.code) {
+        return res.status(400).json({
+          status: 'fail',
+          message: `Gagal mengunggah file: ${error.message}`,
+        });
+      }
+
+      // Error umum
+      console.error('Unexpected error:', error);
       return res.status(500).json({
         status: 'error',
-        message: 'Gagal memperbarui cover album',
+        message: 'Terjadi kesalahan internal server',
       });
     }
   }
