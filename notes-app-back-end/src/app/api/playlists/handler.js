@@ -47,7 +47,7 @@ class PlaylistsHandler {
       const playlistSongId = await this._playlistsService.addSong(
         playlistId,
         req.body.songId,
-        userId,
+        userId
       );
 
       return res.status(201).json({
@@ -81,7 +81,7 @@ class PlaylistsHandler {
         status: 'success',
         data: { playlists },
       });
-    } catch (e) {
+    } catch {
       return res.status(500).json({
         status: 'error',
         message: 'Terjadi kesalahan server',
@@ -127,7 +127,7 @@ class PlaylistsHandler {
       const deletedSongId = await this._playlistsService.deleteSong(
         playlistId,
         req.body.songId,
-        userId,
+        userId
       );
 
       return res.status(200).json({
@@ -209,11 +209,7 @@ class PlaylistsHandler {
       const { userId } = req.auth;
       const { targetEmail } = req.body;
 
-      const result = await this._playlistsService.exportPlaylist(
-        playlistId,
-        userId,
-        targetEmail,
-      );
+      const result = await this._playlistsService.exportPlaylist(playlistId, userId, targetEmail);
 
       return res.status(201).json({
         status: 'success',

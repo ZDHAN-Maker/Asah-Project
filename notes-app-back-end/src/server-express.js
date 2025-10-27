@@ -51,7 +51,7 @@ const CacheService = require('./app/services/CacheService');
   const songsService = new SongsService();
 
   // >>> init cache (Redis) dan likes service <<<
-  const cacheService = await CacheService.create(); // TUNGGU konek Redis
+  const cacheService = new CacheService();
   const albumLikesService = new AlbumLikesService(pool, cacheService);
 
   // --- init handlers ---
@@ -64,7 +64,7 @@ const CacheService = require('./app/services/CacheService');
   // --- init routers ---
   app.use('/users', createUsersRouter(usersHandler));
   app.use('/', createUsersRouter(usersHandler));
-  app.use('/albums', createAlbumsRouter(albumsHandler)); // pastikan route likes ada
+  app.use('/albums', createAlbumsRouter(albumsHandler));
   app.use('/songs', createSongsRouter(songsHandler));
   app.use('/playlists', createPlaylistsRouter(playlistsHandler));
   app.use('/collaborations', createCollaboratorRoute(collaboratorHandler));
