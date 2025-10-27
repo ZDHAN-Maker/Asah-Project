@@ -1,5 +1,6 @@
 const path = require('path');
-
+const multer = require('multer');
+const { MulterError } = multer;
 const ClientError = require('../../utils/error/ClientError');
 const NotFoundError = require('../../utils/error/NotFoundError');
 const { uploadCover } = require('../../utils/upload');
@@ -137,41 +138,16 @@ class AlbumsHandler {
 
   // === POST /albums/{id}/covers ===
   async postUploadCover(req, res) {
-    uploadCover(req, res, async (err) => {
-      // === Tangani error dari multer ===
-      if (err) {
-        if (err instanceof multer.MulterError) {
-          // File terlalu besar
-          if (err.code === 'LIMIT_FILE_SIZE') {
-            return res.status(413).json({
-              status: 'fail',
-              message: 'Ukuran file terlalu besar (maks 512KB)',
-            });
-          }
-
-          // File bukan gambar
-          if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-            return res.status(400).json({
-              status: 'fail',
-              message: 'Tipe file harus berupa gambar (png, jpg, jpeg, webp)',
-            });
-          }
-
-          // Error multer lainnya
-          return res.status(400).json({
-            status: 'fail',
-            message: err.message || 'Terjadi kesalahan saat upload file',
-          });
-        }
-
-        // Error umum lain (bukan dari multer)
-        return res.status(500).json({
-          status: 'error',
-          message: 'Kesalahan server saat memproses file',
+    try {
+      // Jalankan uploadCover sebagai Promise
+      await new Promise((resolve, reject) => {
+        uploadCover(req, res, (err) => {
+          if (err) reject(err);
+          else resolve();
         });
-      }
+      });
 
-      // === Jika tidak ada file ===
+      // Pastikan file ada
       if (!req.file) {
         return res.status(400).json({
           status: 'fail',
@@ -179,27 +155,55 @@ class AlbumsHandler {
         });
       }
 
-      try {
-        // Simpan path file ke database
-        const filePath = path.join('uploads', 'covers', req.file.filename);
-        const albumId = await this._service.updateAlbumCover(req.params.id, filePath);
+      // Simpan file path ke database
+      const albumId = req.params.id;
+      const filePath = path.join('uploads', 'covers', req.file.filename);
 
-        return res.status(201).json({
-          status: 'success',
-          message: 'Sampul album berhasil diunggah',
-          data: {
-            albumId,
-            coverUrl: filePath,
-          },
-        });
-      } catch (error) {
-        console.error(error);
-        return res.status(500).json({
-          status: 'error',
-          message: 'Gagal memperbarui cover album',
+      // Update cover album di database
+      await this._service.updateAlbumCover(albumId, filePath);
+
+      // Kembalikan respons sukses
+      return res.status(201).json({
+        status: 'success',
+        message: 'Sampul album berhasil diunggah',
+        data: {
+          albumId,
+          coverUrl: filePath,
+        },
+      });
+    } catch (err) {
+      // Tangani error dari Multer
+      if (err instanceof MulterError) {
+        // Jika error karena ukuran file terlalu besar
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(413).json({
+            status: 'fail',
+            message: 'Ukuran file terlalu besar (maks 512KB)',
+          });
+        }
+
+        // Jika error karena tipe file tidak valid
+        if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+          return res.status(400).json({
+            status: 'fail',
+            message: 'Tipe file harus berupa gambar (png, jpg, jpeg, webp)',
+          });
+        }
+
+        // Error lainnya dari Multer
+        return res.status(400).json({
+          status: 'fail',
+          message: err.message || 'Gagal mengunggah file',
         });
       }
-    });
+
+      // Tangani error umum jika bukan dari Multer
+      console.error('Upload error:', err);
+      return res.status(500).json({
+        status: 'error',
+        message: 'Gagal memperbarui cover album',
+      });
+    }
   }
 
   // === POST /albums/{id}/likes ===
