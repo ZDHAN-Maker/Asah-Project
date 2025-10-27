@@ -22,7 +22,7 @@ const storage = multer.diskStorage({
 const fileFilter = (_req, file, cb) => {
   const allowed = /^image\/(png|jpe?g|webp)$/i;
   if (allowed.test(file.mimetype)) cb(null, true);
-  else cb(new Error('Tipe file tidak diizinkan, hanya gambar PNG/JPG/WEBP'), false);
+  else cb(new multer.MulterError('LIMIT_UNEXPECTED_FILE', 'Tipe file harus berupa gambar PNG/JPG/WEBP'), false);
 };
 
 // === Middleware multer ===
@@ -32,5 +32,5 @@ const uploadCover = multer({
   limits: { fileSize: 512 * 1024 }, // Maks 512KB
 }).single('cover');
 
-// === Ekspor middleware siap pakai ===
+// === Ekspor middleware ===
 module.exports = { uploadCover };

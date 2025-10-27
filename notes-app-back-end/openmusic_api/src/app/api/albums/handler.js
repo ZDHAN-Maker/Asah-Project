@@ -1,4 +1,5 @@
 const path = require('path');
+
 const ClientError = require('../../utils/error/ClientError');
 const NotFoundError = require('../../utils/error/NotFoundError');
 const { uploadCover } = require('../../utils/upload');
@@ -137,35 +138,49 @@ class AlbumsHandler {
   // === POST /albums/{id}/covers ===
   async postUploadCover(req, res) {
     uploadCover(req, res, async (err) => {
-      try {
-        if (err) {
+      // === Tangani error dari multer ===
+      if (err) {
+        if (err instanceof multer.MulterError) {
+          // File terlalu besar
           if (err.code === 'LIMIT_FILE_SIZE') {
             return res.status(413).json({
               status: 'fail',
-              message: 'Ukuran file terlalu besar (maks 512kb)',
+              message: 'Ukuran file terlalu besar (maks 512KB)',
             });
           }
 
-          if (err.message === 'Tipe konten harus gambar') {
+          // File bukan gambar
+          if (err.code === 'LIMIT_UNEXPECTED_FILE') {
             return res.status(400).json({
               status: 'fail',
               message: 'Tipe file harus berupa gambar (png, jpg, jpeg, webp)',
             });
           }
 
+          // Error multer lainnya
           return res.status(400).json({
             status: 'fail',
-            message: err.message || 'Gagal mengunggah file',
+            message: err.message || 'Terjadi kesalahan saat upload file',
           });
         }
 
-        if (!req.file) {
-          return res.status(400).json({
-            status: 'fail',
-            message: 'File cover belum diunggah',
-          });
-        }
+        // Error umum lain (bukan dari multer)
+        return res.status(500).json({
+          status: 'error',
+          message: 'Kesalahan server saat memproses file',
+        });
+      }
 
+      // === Jika tidak ada file ===
+      if (!req.file) {
+        return res.status(400).json({
+          status: 'fail',
+          message: 'File cover belum diunggah',
+        });
+      }
+
+      try {
+        // Simpan path file ke database
         const filePath = path.join('uploads', 'covers', req.file.filename);
         const albumId = await this._service.updateAlbumCover(req.params.id, filePath);
 
@@ -177,7 +192,8 @@ class AlbumsHandler {
             coverUrl: filePath,
           },
         });
-      } catch {
+      } catch (error) {
+        console.error(error);
         return res.status(500).json({
           status: 'error',
           message: 'Gagal memperbarui cover album',
