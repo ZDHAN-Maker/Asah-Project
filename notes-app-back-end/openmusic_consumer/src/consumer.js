@@ -16,9 +16,9 @@ const init = async () => {
     await channel.assertQueue('export:playlists', { durable: true });
     channel.consume('export:playlists', listener.listen, { noAck: true });
 
-    console.log('✅ Consumer is listening for export:playlists queue...');
+    console.log('Consumer is listening for export:playlists queue...');
   } catch (error) {
-    console.error('❌ Failed to start consumer:', error);
+    console.error('Failed to start consumer:', error);
   }
 };
 
