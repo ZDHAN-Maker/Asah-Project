@@ -4,3 +4,4 @@ CREATE TABLE IF NOT EXISTS playlists (
   owner TEXT NOT NULL,
   FOREIGN KEY (owner) REFERENCES users(id) ON DELETE CASCADE
 );
+

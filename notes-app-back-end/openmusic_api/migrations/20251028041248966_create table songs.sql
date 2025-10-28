@@ -1,3 +1,4 @@
+
 CREATE TABLE songs (
     id TEXT PRIMARY KEY,
     title VARCHAR(255) NOT NULL,

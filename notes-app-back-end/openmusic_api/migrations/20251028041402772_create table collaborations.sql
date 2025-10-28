@@ -1,3 +1,4 @@
+
 CREATE TABLE collaborations (
     id TEXT PRIMARY KEY,
     playlist_id TEXT,
