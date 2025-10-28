@@ -1,7 +1,7 @@
 const fs = require('fs');
+const multer = require('multer');
 const ClientError = require('../../utils/error/ClientError');
 const NotFoundError = require('../../utils/error/NotFoundError');
-const { uploadCover } = require('../../utils/upload');
 const validateAlbum = require('./validator');
 
 class AlbumsHandler {
@@ -65,10 +65,20 @@ class AlbumsHandler {
       const { id } = req.params;
       const album = await this._validateAlbumExists(id);
 
-      const { name, year, coverUrl, songs } = album;
+      // 💡 Pastikan coverUrl lengkap
+      let coverUrl = null;
+      if (album.coverUrl) {
+        const host = process.env.HOST || 'localhost';
+        const port = process.env.PORT || 5001;
+        coverUrl = `http://${host}:${port}/${album.coverUrl}`;
+      }
+
+      const { name, year, songs } = album;
       return res.status(200).json({
         status: 'success',
-        data: { album: { id, name, year, coverUrl, songs } },
+        data: {
+          album: { id, name, year, coverUrl, songs },
+        },
       });
     } catch (error) {
       return this._handleError(res, error, 'Terjadi kesalahan pada server');
@@ -113,8 +123,6 @@ class AlbumsHandler {
   // === POST /albums/{id}/covers ===
   async postUploadCover(req, res) {
     try {
-      await uploadCover(req, res);
-
       if (!req.file) {
         return res.status(400).json({
           status: 'fail',
@@ -123,11 +131,11 @@ class AlbumsHandler {
       }
 
       const albumId = req.params.id;
-      const filePath = `uploads/covers/${req.file.filename}`;
+      const relativePath = `uploads/covers/${req.file.filename}`;
 
-      const updateResult = await this._service.updateAlbumCover(albumId, filePath);
-
-      if (!updateResult) {
+      // Update database
+      const updated = await this._service.updateAlbumCover(albumId, relativePath);
+      if (!updated) {
         fs.unlinkSync(req.file.path);
         return res.status(404).json({
           status: 'fail',
@@ -135,47 +143,28 @@ class AlbumsHandler {
         });
       }
 
-      const updatedAlbum = await this._service.getAlbumById(albumId);
+      const host = process.env.HOST || 'localhost';
+      const port = process.env.PORT || 5001;
+      const fullUrl = `http://${host}:${port}/${relativePath}`;
 
       return res.status(201).json({
         status: 'success',
-        message: 'Cover album berhasil diunggah.',
+        message: 'Cover album berhasil diunggah',
         data: {
           albumId,
-          coverUrl: updatedAlbum.coverUrl,
+          coverUrl: fullUrl,
         },
       });
     } catch (error) {
-      // Handle Multer errors
-      if (error.code === 'LIMIT_FILE_SIZE') {
-        return res.status(413).json({
-          status: 'fail',
-          message: 'File terlalu besar (maks 512KB)',
-        });
-      }
-
-      if (error.code === 'LIMIT_UNEXPECTED_FILE') {
-        return res.status(400).json({
-          status: 'fail',
-          message: 'Tipe file harus berupa gambar (png, jpg, jpeg, webp)',
-        });
-      }
-
-      if (error.message?.includes('No files were uploaded')) {
-        return res.status(400).json({
-          status: 'fail',
-          message: 'File cover belum diunggah',
-        });
-      }
-
-      if (error.code) {
-        return res.status(400).json({
-          status: 'fail',
-          message: `Gagal mengunggah file: ${error.message}`,
-        });
-      }
-
       console.error('Upload Error:', error);
+
+      if (error instanceof multer.MulterError) {
+        return res.status(400).json({
+          status: 'fail',
+          message: error.message,
+        });
+      }
+
       return res.status(500).json({
         status: 'error',
         message: 'Terjadi kesalahan internal server',

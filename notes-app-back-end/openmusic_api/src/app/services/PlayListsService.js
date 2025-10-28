@@ -26,14 +26,14 @@ class PlaylistsService {
 
     try {
       this._connecting = true;
-      const rabbitUrl = process.env.RABBITMQ_URL || 'amqp://localhost';
+      const rabbitUrl = process.env.RABBITMQ_SERVER || 'amqp://localhost';
       this._amqpConn = await amqp.connect(rabbitUrl);
       this._channel = await this._amqpConn.createChannel();
 
       await this._channel.assertQueue('export:playlists', { durable: true });
-      console.log('✅ RabbitMQ connected');
+      console.log('RabbitMQ connected');
     } catch (error) {
-      console.error('❌ Error connecting to RabbitMQ:', error);
+      console.error('Error connecting to RabbitMQ:', error);
       throw new ClientError('Gagal koneksi ke RabbitMQ');
     } finally {
       this._connecting = false;
