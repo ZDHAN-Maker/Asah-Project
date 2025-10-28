@@ -11,19 +11,24 @@ class MailSender {
       },
     });
   }
-  sendEmail(targetEmail, content) {
+
+  async sendEmail(targetEmail, content) {
     const message = {
-      from: "Notes Apps",
+      from: 'Playlists App',
       to: targetEmail,
-      subject: "Ekspor Catatan",
-      text: "Terlampir hasil dari ekspor catatan",
+      subject: 'Ekspor Playlist',
+      text: 'Terlampir hasil dari ekspor playlist Anda.',
       attachments: [
         {
-          filename: "notes.json",
+          filename: 'playlists.json',
           content,
         },
       ],
     };
+
+    // Kirim email ke target
+    const result = await this._transporter.sendMail(message);
+    return result;
   }
 }
 

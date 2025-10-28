@@ -1,18 +1,23 @@
 {
+  "name": "openmusic_consumer",
+  "version": "1.0.0",
+  "description": "Consumer service for playlist export in OpenMusic app",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/Consumer.js",
+    "format": "prettier --write .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
     "amqplib": "^0.10.9",
     "dotenv": "^17.2.3",
     "nodemailer": "^7.0.10",
     "pg": "^8.16.3"
   },
-  "name": "openmusic_consumer",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "devDependencies": {
+    "prettier": "^3.3.3"
+  }
 }
