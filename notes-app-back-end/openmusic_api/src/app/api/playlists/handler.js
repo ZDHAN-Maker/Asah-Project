@@ -89,6 +89,23 @@ class PlaylistsHandler {
     }
   }
 
+  async getPlaylistByIdHandler(req, res) {
+    try {
+      const { id } = req.params;
+
+      const { data } = await this._service.getSongs(id, req.auth.userId);
+
+      return res.status(200).json({
+        status: 'success',
+        data: {
+          playlist: data.playlist,
+        },
+      });
+    } catch (error) {
+      return this._handleError(res, error, 'Terjadi kesalahan pada server');
+    }
+  }
+
   async deletePlaylist(req, res) {
     try {
       const { userId } = req.auth;
