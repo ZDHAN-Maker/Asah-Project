@@ -117,20 +117,13 @@ class SongsService {
   }
 
   async getSongsByAlbumId(albumId) {
-    // Query to get songs by albumId, return an empty array if no songs found
     const query = {
       text: 'SELECT id, title, performer FROM songs WHERE album_id = $1',
       values: [albumId],
     };
 
-    const res = await pool.query(query);
-
-    if (!res.rows.length) {
-      // Return a meaningful error or an empty array if no songs are found for the given albumId
-      throw new NotFoundError('No songs found for the given album ID');
-    }
-
-    return res.rows; // Return the list of songs
+    const result = await this._pool.query(query);
+    return result.rows;
   }
 }
 

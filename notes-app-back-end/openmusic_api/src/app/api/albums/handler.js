@@ -38,9 +38,7 @@ class AlbumsHandler {
 
   async _validateAlbumExists(id) {
     const album = await this._service.getAlbumById(id);
-    if (!album) {
-      throw new NotFoundError('Album tidak ditemukan');
-    }
+    if (!album) throw new NotFoundError('Album tidak ditemukan');
     return album;
   }
 
@@ -63,21 +61,31 @@ class AlbumsHandler {
   async getAlbumByIdHandler(req, res) {
     try {
       const { id } = req.params;
+
+      // Ambil data album
       const album = await this._validateAlbumExists(id);
 
-      // 💡 Pastikan coverUrl lengkap
+      // Ambil lagu-lagu di album ini
+      const songs = await this._songsService.getSongsByAlbumId(id);
+
+      // Pastikan coverUrl berbentuk URL lengkap
       let coverUrl = null;
-      if (album.coverUrl) {
+      if (album.cover_url) {
         const host = process.env.HOST || 'localhost';
         const port = process.env.PORT || 5001;
-        coverUrl = `http://${host}:${port}/${album.coverUrl}`;
+        coverUrl = `http://${host}:${port}/${album.cover_url}`;
       }
 
-      const { name, year, songs } = album;
       return res.status(200).json({
         status: 'success',
         data: {
-          album: { id, name, year, coverUrl, songs },
+          album: {
+            id: album.id,
+            name: album.name,
+            year: album.year,
+            coverUrl,
+            songs,
+          },
         },
       });
     } catch (error) {
@@ -130,7 +138,7 @@ class AlbumsHandler {
         });
       }
 
-      const albumId = req.params.id;
+      const { id: albumId } = req.params;
       const relativePath = `uploads/covers/${req.file.filename}`;
 
       // Update database
@@ -201,13 +209,6 @@ class AlbumsHandler {
         message: 'Album liked successfully',
       });
     } catch (error) {
-      if (error?.code === 'DUPLICATE_LIKE') {
-        return res.status(400).json({
-          status: 'fail',
-          message: 'User already liked this album',
-        });
-      }
-
       return this._handleError(res, error, 'Server error while liking album');
     }
   }
@@ -252,11 +253,8 @@ class AlbumsHandler {
       await this._validateAlbumExists(albumId);
 
       const result = await this._likesService.getLikesCount(albumId);
-
       const response = res.status(200);
-      if (result.fromCache) {
-        response.set('X-Data-Source', 'cache');
-      }
+      if (result.fromCache) response.set('X-Data-Source', 'cache');
 
       return response.json({
         status: 'success',

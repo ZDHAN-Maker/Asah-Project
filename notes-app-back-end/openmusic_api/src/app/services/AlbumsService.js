@@ -4,7 +4,7 @@ const NotFoundError = require('../utils/error/NotFoundError');
 
 class AlbumsService {
   constructor() {
-    this.pool = pool;
+    this._pool = pool;
   }
 
   async addAlbum({ name, year }) {
@@ -17,16 +17,8 @@ class AlbumsService {
       values: [id, name, year, createdAt, updatedAt],
     };
 
-    try {
-      const res = await pool.query(query);
-      if (!res.rows[0].id) {
-        throw new Error('Failed to add album');
-      }
-      return res.rows[0].id; // Return the album ID as a string
-    } catch (error) {
-      console.error(error);
-      throw new Error('An error occurred while adding the album');
-    }
+    const result = await this._pool.query(query);
+    return result.rows[0].id;
   }
 
   async getAlbumById(id) {
@@ -35,30 +27,10 @@ class AlbumsService {
       values: [id],
     };
 
-    const result = await this.pool.query(query);
+    const result = await this._pool.query(query);
+    if (!result.rowCount) return null;
 
-    // PERBAIKAN: Cek jika album tidak ditemukan
-    if (result.rows.length === 0) {
-      return null; // Return null instead of throwing error
-    }
-
-    const album = result.rows[0];
-
-    // Get songs related to the album
-    const songsQuery = {
-      text: 'SELECT id, title, performer FROM songs WHERE album_id = $1',
-      values: [id],
-    };
-
-    const songsResult = await this.pool.query(songsQuery);
-
-    return {
-      id: album.id,
-      name: album.name,
-      year: album.year,
-      coverUrl: album.cover_url || null,
-      songs: songsResult.rows || [], // Return empty array if no songs found
-    };
+    return result.rows[0];
   }
 
   async editAlbumById(id, { name, year }) {
@@ -68,14 +40,9 @@ class AlbumsService {
       values: [name, year, updatedAt, id],
     };
 
-    const res = await this.pool.query(query);
-
-    // PERBAIKAN: Cek jika album tidak ditemukan
-    if (res.rows.length === 0) {
-      throw new NotFoundError('Album tidak ditemukan untuk diperbarui');
-    }
-
-    return res.rows[0].id;
+    const result = await this._pool.query(query);
+    if (!result.rowCount) throw new NotFoundError('Album tidak ditemukan untuk diperbarui');
+    return result.rows[0].id;
   }
 
   async deleteAlbumById(id) {
@@ -83,36 +50,20 @@ class AlbumsService {
       text: 'DELETE FROM albums WHERE id=$1 RETURNING id',
       values: [id],
     };
-    const res = await this.pool.query(query);
-
-    if (!res.rowCount) {
-      throw new NotFoundError('Album not found for deletion');
-    }
-
-    return res.rows[0].id; // Return the album ID as a string
+    const result = await this._pool.query(query);
+    if (!result.rowCount) throw new NotFoundError('Album tidak ditemukan untuk dihapus');
+    return result.rows[0].id;
   }
 
-  // Di service/AlbumService.js
   async updateAlbumCover(albumId, coverPath) {
-    try {
-      const query = {
-        text: 'UPDATE albums SET cover_url = $1 WHERE id = $2 RETURNING id, cover_url',
-        values: [coverPath, albumId],
-      };
+    const query = {
+      text: 'UPDATE albums SET cover_url = $1 WHERE id = $2 RETURNING id, cover_url',
+      values: [coverPath, albumId],
+    };
 
-      const result = await this.pool.query(query);
-
-      // Ensure that the result returns the updated album cover
-      if (result.rows.length === 0) {
-        return false; // Return false if no rows are updated
-      }
-
-      // Directly return whether cover_url exists
-      return !!result.rows[0].cover_url; // Convert to boolean, no need for the ternary
-    } catch (error) {
-      console.error('Database update error:', error);
-      throw error;
-    }
+    const result = await this._pool.query(query);
+    if (!result.rowCount) return false;
+    return !!result.rows[0].cover_url;
   }
 }
 
