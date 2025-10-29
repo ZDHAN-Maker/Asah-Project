@@ -10,7 +10,7 @@ class AlbumsHandler {
     this._songsService = songsService;
     this._likesService = likesService;
 
-    // Bind methods
+    // Binding context
     this.postAlbumHandler = this.postAlbumHandler.bind(this);
     this.getAlbumByIdHandler = this.getAlbumByIdHandler.bind(this);
     this.putAlbumByIdHandler = this.putAlbumByIdHandler.bind(this);
@@ -21,7 +21,8 @@ class AlbumsHandler {
     this.getAlbumLikes = this.getAlbumLikes.bind(this);
   }
 
-  async _handleError(res, error, defaultMessage) {
+  // === Utility error handler ===
+  _handleError(res, error, defaultMessage = 'Terjadi kesalahan internal server') {
     if (error instanceof ClientError) {
       return res.status(error.statusCode).json({
         status: 'fail',
@@ -36,6 +37,7 @@ class AlbumsHandler {
     });
   }
 
+  // === Cek apakah album ada ===
   async _validateAlbumExists(id) {
     const album = await this._service.getAlbumById(id);
     if (!album) throw new NotFoundError('Album tidak ditemukan');
@@ -45,6 +47,9 @@ class AlbumsHandler {
   // === POST /albums ===
   async postAlbumHandler(req, res) {
     try {
+      // ✅ VALIDASI PAYLOAD
+      validateAlbum(req.body);
+
       const { name, year } = req.body;
       const albumId = await this._service.addAlbum({ name, year });
 
@@ -54,9 +59,18 @@ class AlbumsHandler {
         data: { albumId },
       });
     } catch (error) {
+      // ✅ Tangani ClientError agar 400, bukan 500
+      if (error instanceof ClientError) {
+        return res.status(error.statusCode).json({
+          status: 'fail',
+          message: error.message,
+        });
+      }
+
+      console.error('POST /albums Error:', error);
       return res.status(500).json({
         status: 'error',
-        message: error.message,
+        message: 'Terjadi kesalahan pada server saat menambahkan album',
       });
     }
   }
@@ -72,7 +86,7 @@ class AlbumsHandler {
         data: { album },
       });
     } catch (error) {
-      if (error.message.includes('tidak ditemukan')) {
+      if (error instanceof NotFoundError) {
         return res.status(404).json({
           status: 'fail',
           message: 'Album tidak ditemukan',
@@ -89,10 +103,11 @@ class AlbumsHandler {
   // === PUT /albums/{id} ===
   async putAlbumByIdHandler(req, res) {
     try {
+      validateAlbum(req.body);
+
       const { id } = req.params;
       const { name, year } = req.body;
 
-      validateAlbum(req.body);
       await this._validateAlbumExists(id);
       await this._service.editAlbumById(id, { name, year });
 
@@ -101,7 +116,7 @@ class AlbumsHandler {
         message: 'Album berhasil diperbarui',
       });
     } catch (error) {
-      return this._handleError(res, error, 'Terjadi kesalahan server saat memperbarui album');
+      return this._handleError(res, error, 'Gagal memperbarui album');
     }
   }
 
@@ -117,7 +132,7 @@ class AlbumsHandler {
         message: 'Album berhasil dihapus',
       });
     } catch (error) {
-      return this._handleError(res, error, 'Terjadi kesalahan server saat menghapus album');
+      return this._handleError(res, error, 'Gagal menghapus album');
     }
   }
 
@@ -164,7 +179,7 @@ class AlbumsHandler {
 
       return res.status(500).json({
         status: 'error',
-        message: 'Terjadi kesalahan internal server',
+        message: 'Terjadi kesalahan internal server saat upload cover',
       });
     }
   }
@@ -198,7 +213,7 @@ class AlbumsHandler {
         message: 'Album liked successfully',
       });
     } catch (error) {
-      return this._handleError(res, error, 'Server error while liking album');
+      return this._handleError(res, error, 'Gagal menyukai album');
     }
   }
 
@@ -231,7 +246,7 @@ class AlbumsHandler {
         message: 'Album unliked successfully',
       });
     } catch (error) {
-      return this._handleError(res, error, 'Server error while unliking album');
+      return this._handleError(res, error, 'Gagal menghapus like album');
     }
   }
 
@@ -250,7 +265,7 @@ class AlbumsHandler {
         data: { likes: result.count },
       });
     } catch (error) {
-      return this._handleError(res, error, 'Server error while getting like count');
+      return this._handleError(res, error, 'Gagal mengambil jumlah like album');
     }
   }
 }
