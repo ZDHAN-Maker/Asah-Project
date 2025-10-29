@@ -45,15 +45,19 @@ class AlbumsHandler {
   // === POST /albums ===
   async postAlbumHandler(req, res) {
     try {
-      validateAlbum(req.body);
-      const albumId = await this._service.addAlbum(req.body);
+      const { name, year } = req.body;
+      const albumId = await this._service.addAlbum({ name, year });
 
       return res.status(201).json({
         status: 'success',
+        message: 'Album berhasil ditambahkan',
         data: { albumId },
       });
     } catch (error) {
-      return this._handleError(res, error, 'Terjadi kesalahan pada server');
+      return res.status(500).json({
+        status: 'error',
+        message: error.message,
+      });
     }
   }
 
@@ -61,35 +65,24 @@ class AlbumsHandler {
   async getAlbumByIdHandler(req, res) {
     try {
       const { id } = req.params;
-
-      // Ambil data album
-      const album = await this._validateAlbumExists(id);
-
-      // Ambil lagu-lagu di album ini
-      const songs = await this._songsService.getSongsByAlbumId(id);
-
-      // Pastikan coverUrl berbentuk URL lengkap
-      let coverUrl = null;
-      if (album.cover_url) {
-        const host = process.env.HOST || 'localhost';
-        const port = process.env.PORT || 5001;
-        coverUrl = `http://${host}:${port}/${album.cover_url}`;
-      }
+      const album = await this._service.getAlbumDetailById(id);
 
       return res.status(200).json({
         status: 'success',
-        data: {
-          album: {
-            id: album.id,
-            name: album.name,
-            year: album.year,
-            coverUrl,
-            songs,
-          },
-        },
+        data: { album },
       });
     } catch (error) {
-      return this._handleError(res, error, 'Terjadi kesalahan pada server');
+      if (error.message.includes('tidak ditemukan')) {
+        return res.status(404).json({
+          status: 'fail',
+          message: 'Album tidak ditemukan',
+        });
+      }
+
+      return res.status(500).json({
+        status: 'error',
+        message: 'Terjadi kesalahan internal server',
+      });
     }
   }
 
@@ -141,7 +134,6 @@ class AlbumsHandler {
       const { id: albumId } = req.params;
       const relativePath = `uploads/covers/${req.file.filename}`;
 
-      // Update database
       const updated = await this._service.updateAlbumCover(albumId, relativePath);
       if (!updated) {
         fs.unlinkSync(req.file.path);
@@ -152,16 +144,13 @@ class AlbumsHandler {
       }
 
       const host = process.env.HOST || 'localhost';
-      const port = process.env.PORT || 5001;
+      const port = process.env.PORT || 5000;
       const fullUrl = `http://${host}:${port}/${relativePath}`;
 
       return res.status(201).json({
         status: 'success',
         message: 'Cover album berhasil diunggah',
-        data: {
-          albumId,
-          coverUrl: fullUrl,
-        },
+        data: { albumId, coverUrl: fullUrl },
       });
     } catch (error) {
       console.error('Upload Error:', error);

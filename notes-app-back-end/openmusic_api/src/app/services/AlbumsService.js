@@ -29,8 +29,31 @@ class AlbumsService {
 
     const result = await this._pool.query(query);
     if (!result.rowCount) return null;
-
     return result.rows[0];
+  }
+
+  async getSongsByAlbumId(albumId) {
+    const query = {
+      text: 'SELECT id, title, performer FROM songs WHERE album_id = $1',
+      values: [albumId],
+    };
+
+    const result = await this._pool.query(query);
+    return result.rows;
+  }
+
+  async getAlbumDetailById(id) {
+    const album = await this.getAlbumById(id);
+    if (!album) throw new NotFoundError('Album tidak ditemukan');
+
+    const songs = await this.getSongsByAlbumId(id);
+    return {
+      id: album.id,
+      name: album.name,
+      year: album.year,
+      coverUrl: album.cover_url ? `http://localhost:5000/${album.cover_url}` : null,
+      songs,
+    };
   }
 
   async editAlbumById(id, { name, year }) {
