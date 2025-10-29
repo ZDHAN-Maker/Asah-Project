@@ -37,14 +37,13 @@ const createCollaboratorRoute = require('./app/api/collaborations/routes');
 const CacheService = require('./app/services/CacheService');
 
 (async () => {
+  // --- init app ---
   const app = express();
   app.use(express.json());
-
-  // ✅ Pastikan path uploads benar
   const uploadsPath = path.resolve(process.cwd(), 'uploads');
   app.use('/uploads', express.static(uploadsPath));
 
-  // === init services ===
+  // --- init services ---
   const collaborationsService = new CollaborationsService();
   const playlistsService = new PlaylistsService(collaborationsService);
   collaborationsService._playlistService = playlistsService;
@@ -52,28 +51,29 @@ const CacheService = require('./app/services/CacheService');
   const albumsService = new AlbumsService();
   const songsService = new SongsService();
 
+  // >>> init cache (Redis) dan likes service <<<
   const cacheService = new CacheService();
   const albumLikesService = new AlbumLikesService(pool, cacheService);
 
-  // === init handlers ===
+  // --- init handlers ---
   const usersHandler = new UsersHandler();
   const albumsHandler = new AlbumsHandler(albumsService, songsService, albumLikesService);
   const songsHandler = new SongsHandler(songsService, songValidator);
   const playlistsHandler = new PlaylistsHandler(playlistsService, playlistsValidator);
   const collaboratorHandler = new CollaboratorHandler(collaborationsService, validateCollaborator);
 
-  // === init routers ===
+  // --- init routers ---
   app.use('/users', createUsersRouter(usersHandler));
+  app.use('/', createUsersRouter(usersHandler));
   app.use('/albums', createAlbumsRouter(albumsHandler));
   app.use('/songs', createSongsRouter(songsHandler));
   app.use('/playlists', createPlaylistsRouter(playlistsHandler));
   app.use('/collaborations', createCollaboratorRoute(collaboratorHandler));
   app.use('/export', createPlaylistsRouter(playlistsHandler));
 
-  // === start server ===
+  // --- start server ---
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
-    console.log(`✅ Server berjalan pada port ${PORT}`);
-    console.log(`📂 Static file served from: ${uploadsPath}`);
+    console.log(`Server berjalan pada port ${PORT}`);
   });
 })();
